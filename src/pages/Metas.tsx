@@ -4,6 +4,7 @@ import { db, novoId, type Meta } from "../db";
 import { hoje, mesAtual } from "../lib/calc";
 import { dataCurta, dinheiro, lerValor, mesExtenso, numeroBR } from "../lib/format";
 import { BotaoConfirmar, CORES, Campo, Folha, ICONES, IconeCategoria, useAviso, type DadosApp } from "../components/ui";
+import { CampoMesOpcional, InputValor } from "../components/campos";
 
 const ICONES_META = ["piggy", "plane", "home", "car", "school", "heart", "monitor", "briefcase", "landmark", "cart"];
 
@@ -88,7 +89,7 @@ function DetalheMeta({ m, fechar, editar }: { m: Meta; fechar: () => void; edita
         <div className="cab"><span className="num">{dinheiro(m.guardado)} de {dinheiro(m.alvo)}</span><span className="muted num">falta {dinheiro(r.falta)}</span></div>
         {r.porMes ? <span className="muted" style={{ fontSize: ".86rem" }}>Para chegar até {mesExtenso(m.prazo!)}: guarde {dinheiro(r.porMes)} por mês.</span> : null}
       </div>
-      <Campo rotulo="Valor"><input id="mt-valor" inputMode="decimal" placeholder="R$ 0,00" value={valor} onChange={(e) => setValor(e.target.value)} /></Campo>
+      <Campo rotulo="Valor"><InputValor id="mt-valor" value={valor} onChange={setValor} /></Campo>
       <div className="linha-botoes">
         <button type="button" className="btn pri" onClick={() => movimentar(1)}>Guardar</button>
         <button type="button" className="btn" onClick={() => movimentar(-1)}>Retirar</button>
@@ -131,10 +132,10 @@ function EditarMeta({ edit, fechar }: { edit: Partial<Meta> | null; fechar: () =
     <Folha titulo={edit.id ? "Editar meta" : "Nova meta"} aberta fechar={fechar}>
       <Campo rotulo="Nome"><input id="me-nome" value={form.nome ?? ""} onChange={(e) => setForm({ ...form, nome: e.target.value })} placeholder="Ex.: Reserva de emergência" maxLength={60} /></Campo>
       <div className="duas">
-        <Campo rotulo="Quanto quer juntar"><input id="me-alvo" inputMode="decimal" value={form.alvoTxt ?? ""} onChange={(e) => setForm({ ...form, alvoTxt: e.target.value })} placeholder="15.000,00" /></Campo>
-        <Campo rotulo="Já tem guardado"><input id="me-guard" inputMode="decimal" value={form.guardadoTxt ?? ""} onChange={(e) => setForm({ ...form, guardadoTxt: e.target.value })} placeholder="0,00" /></Campo>
+        <Campo rotulo="Quanto quer juntar"><InputValor id="me-alvo" value={form.alvoTxt ?? ""} onChange={(v) => setForm({ ...form, alvoTxt: v })} /></Campo>
+        <Campo rotulo="Já tem guardado"><InputValor id="me-guard" value={form.guardadoTxt ?? ""} onChange={(v) => setForm({ ...form, guardadoTxt: v })} /></Campo>
       </div>
-      <Campo rotulo="Até quando (opcional)"><input id="me-prazo" type="month" value={form.prazo ?? ""} min={mesAtual()} onChange={(e) => setForm({ ...form, prazo: e.target.value })} /></Campo>
+      <div className="campo"><span>Até quando (opcional)</span><CampoMesOpcional valor={form.prazo ?? ""} mudar={(m) => setForm({ ...form, prazo: m && m < mesAtual() ? mesAtual() : m })} /></div>
       <div className="campo"><span>Ícone</span>
         <div className="cores">{ICONES_META.map((k) => { const I = ICONES[k]; const on = (form.icone ?? "piggy") === k; const cor = form.cor ?? CORES[0];
           return <button key={k} type="button" aria-label={`Ícone ${k}`} aria-pressed={on} onClick={() => setForm({ ...form, icone: k })} style={{ display: "grid", placeItems: "center", width: 42, height: 42, background: on ? `color-mix(in srgb, ${cor} 18%, var(--surface))` : "var(--surface-2)", color: on ? cor : "var(--muted)" }}><I size={18} /></button>; })}

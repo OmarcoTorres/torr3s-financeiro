@@ -5,6 +5,7 @@ import { mesAtual, situacao, somarMeses, totais, fimDoMes } from "../lib/calc";
 import { dataBR, dinheiro } from "../lib/format";
 import { ItemLancamento } from "../components/ItemLancamento";
 import { Campo, type DadosApp } from "../components/ui";
+import { CampoData } from "../components/campos";
 
 const DIAS = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"];
 
@@ -51,8 +52,8 @@ export function Lancamentos({ dados, abrir }: { dados: DadosApp; abrir: (l: Lanc
 
       {filtros && (
         <section className="card filtros">
-          <Campo rotulo="De"><input id="fl-de" type="date" value={de} onChange={(e) => setDe(e.target.value)} /></Campo>
-          <Campo rotulo="Até"><input id="fl-ate" type="date" value={ate} onChange={(e) => setAte(e.target.value)} /></Campo>
+          <div className="campo"><span>De</span><CampoData id="fl-de" valor={de} mudar={(v) => v && setDe(v)} obrigatoria /></div>
+          <div className="campo"><span>Até</span><CampoData id="fl-ate" valor={ate} mudar={(v) => v && setAte(v)} obrigatoria /></div>
           <Campo rotulo="Tipo"><select id="fl-tipo" value={tipo} onChange={(e) => setTipo(e.target.value)}><option value="">Todos</option><option value="receita">Receitas</option><option value="despesa">Despesas</option><option value="transferencia">Transferências</option></select></Campo>
           <Campo rotulo="Situação"><select id="fl-sit" value={sit} onChange={(e) => setSit(e.target.value)}><option value="">Todas</option><option value="pago">Pago</option><option value="pendente">Pendente</option><option value="atrasado">Atrasado</option></select></Campo>
           <Campo rotulo="Categoria"><select id="fl-cat" value={categoriaId} onChange={(e) => setCategoriaId(e.target.value)}><option value="">Todas</option>{dados.cats.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}</select></Campo>

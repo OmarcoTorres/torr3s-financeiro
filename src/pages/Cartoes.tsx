@@ -6,6 +6,7 @@ import { dataCurta, dinheiro, lerValor, numeroBR } from "../lib/format";
 import { ItemLancamento } from "../components/ItemLancamento";
 import { BotaoConfirmar, CORES, Campo, Folha, useAviso, type DadosApp } from "../components/ui";
 import type { Rascunho } from "../components/LancamentoForm";
+import { InputDigitos, InputValor } from "../components/campos";
 
 /** Fatura em aberto = quanto o cartão está "devendo" (saldo negativo). */
 export function situacaoCartao(c: Conta, lanc: Lancamento[]) {
@@ -114,10 +115,10 @@ function EditarCartao({ edit, setEdit, dados, abrir, pagar }: {
       )}
       <Campo rotulo="Nome do cartão"><input id="ct-nome" value={edit.nome ?? ""} onChange={(e) => setEdit({ ...edit, nome: e.target.value })} placeholder="Ex.: Nubank Platinum" maxLength={40} /></Campo>
       <div className="duas">
-        <Campo rotulo="Final (4 dígitos)"><input id="ct-final" inputMode="numeric" value={edit.final ?? ""} onChange={(e) => setEdit({ ...edit, final: e.target.value.replace(/\D/g, "").slice(0, 4) })} placeholder="4172" /></Campo>
-        <Campo rotulo="Dia do vencimento"><input id="ct-dia" inputMode="numeric" value={edit.diaTxt ?? ""} onChange={(e) => setEdit({ ...edit, diaTxt: e.target.value.replace(/\D/g, "").slice(0, 2) })} placeholder="10" /></Campo>
+        <Campo rotulo="Final (4 dígitos)"><InputDigitos id="ct-final" max={4} value={edit.final ?? ""} onChange={(v) => setEdit({ ...edit, final: v })} placeholder="4172" /></Campo>
+        <Campo rotulo="Dia do vencimento"><InputDigitos id="ct-dia" max={2} value={edit.diaTxt ?? ""} onChange={(v) => setEdit({ ...edit, diaTxt: v && Number(v) > 31 ? "31" : v })} placeholder="10" /></Campo>
       </div>
-      <Campo rotulo="Limite (R$)"><input id="ct-limite" inputMode="decimal" value={edit.limiteTxt ?? ""} onChange={(e) => setEdit({ ...edit, limiteTxt: e.target.value })} placeholder="5.000,00" /></Campo>
+      <Campo rotulo="Limite"><InputValor id="ct-limite" value={edit.limiteTxt ?? ""} onChange={(v) => setEdit({ ...edit, limiteTxt: v })} /></Campo>
       <div className="campo"><span>Cor</span><div className="cores">{CORES.map((c) => <button key={c} type="button" aria-label={`Cor ${c}`} aria-pressed={(edit.cor ?? CORES[0]) === c} style={{ background: fundoCartao(c) }} onClick={() => setEdit({ ...edit, cor: c })} />)}</div></div>
       {compras.length > 0 && (
         <>

@@ -345,6 +345,29 @@ input[type="date"]::-webkit-calendar-picker-indicator, input[type="month"]::-web
 .seletor-mes button svg { width: 20px; height: 20px; }
 .seletor-mes span { text-align: center; font-size: .92rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .seletor-mes b { font-weight: 600; text-transform: capitalize; }
+/* Valor em reais */
+.campo-valor { position: relative; display: flex; align-items: center; background: var(--surface-2); border-radius: 14px; border: 1.5px solid transparent; min-height: 48px; }
+.campo-valor:focus-within { border-color: var(--accent); background: var(--surface); box-shadow: 0 0 0 4px var(--accent-soft); }
+.campo-valor > span { padding-left: 14px; color: var(--muted); font-weight: 600; font-size: .9rem; }
+.campo-valor input { flex: 1; min-width: 0; border: 0 !important; background: transparent !important; box-shadow: none !important; padding: 11px 13px 11px 8px; font-size: 16px; font-variant-numeric: tabular-nums; outline: none; }
+.campo-valor input::placeholder, .campo-data input::placeholder { color: var(--muted); opacity: .55; }
+.campo-valor.grande { min-height: 64px; justify-content: center; }
+.campo-valor.grande > span { font-family: var(--display); font-size: 1.3rem; padding-left: 18px; }
+.campo-valor.grande input { font-family: var(--display); font-size: 2rem; font-weight: 600; text-align: center; padding-right: 48px; }
+/* Data */
+.campo-data-wrap { display: grid; gap: 8px; min-width: 0; }
+.campo-data { position: relative; display: flex; align-items: center; background: var(--surface-2); border-radius: 14px; border: 1.5px solid transparent; min-height: 48px; }
+.campo-data:focus-within { border-color: var(--accent); background: var(--surface); box-shadow: 0 0 0 4px var(--accent-soft); }
+.campo-data.invalida { border-color: var(--neg); }
+.campo-data input[type="text"] { flex: 1; min-width: 0; border: 0 !important; background: transparent !important; box-shadow: none !important; padding: 11px 4px 11px 13px; font-size: 16px; font-variant-numeric: tabular-nums; outline: none; }
+.campo-data .icone-cal { width: 40px !important; }
+.campo-data .icone-cal { width: 44px; display: grid; place-items: center; color: var(--accent); flex: none; }
+.campo-data .data-nativa { position: absolute; right: 0; top: 0; width: 46px; height: 100%; opacity: 0; cursor: pointer; border: 0; padding: 0; margin: 0; -webkit-appearance: none; appearance: none; }
+.campo-data .data-nativa::-webkit-calendar-picker-indicator { position: absolute; inset: 0; width: 100%; height: 100%; cursor: pointer; }
+.atalhos-data { display: flex; gap: 6px; flex-wrap: wrap; }
+.atalhos-data button { border: 0; background: var(--surface-2); color: var(--muted); border-radius: 999px; padding: 6px 11px; font-size: .78rem; font-weight: 600; }
+.atalhos-data button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); }
+.vazio-mes { justify-items: center; grid-template-columns: 1fr; }
 .of-banco { display: grid; grid-template-columns: 40px 1fr auto; gap: 12px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); }
 .of-banco:last-child { border-bottom: 0; }
 .of-banco .lg { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; color: #fff; font-weight: 700; font-size: .8rem; }

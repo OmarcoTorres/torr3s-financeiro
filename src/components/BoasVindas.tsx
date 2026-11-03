@@ -3,6 +3,7 @@ import { ArrowLeft, BarChart3, Briefcase, CalendarClock, Compass, CreditCard, Pi
 import { aplicarPerfil, type Objetivo, type Perfil, type Uso } from "../db";
 import { lerValor } from "../lib/format";
 import { OBJETIVOS } from "../lib/perfil";
+import { InputDigitos, InputNome, InputValor } from "./campos";
 
 const ICONE_OBJ: Record<Objetivo, typeof Compass> = { organizar: CalendarClock, gastos: Search, economizar: PiggyBank, dividas: ShieldCheck, crescer: Rocket };
 const ETAPAS = 6;
@@ -69,7 +70,7 @@ export function BoasVindas({ aoTerminar, inicial }: { aoTerminar: (comTreino: bo
           <>
             <span className="rotulo">1 · Sobre você</span>
             <h1>Como você quer ser chamado?</h1>
-            <input className="campo-grande" id="bv-nome" autoFocus autoComplete="given-name" placeholder="Seu nome" value={nome} onChange={(e) => setNome(e.target.value)} onKeyDown={enter} maxLength={60} />
+            <InputNome className="campo-grande" id="bv-nome" autoFocus autoComplete="given-name" placeholder="Seu nome" value={nome} onChange={setNome} onKeyDown={enter} maxLength={60} />
           </>
         )}
 
@@ -78,7 +79,7 @@ export function BoasVindas({ aoTerminar, inicial }: { aoTerminar: (comTreino: bo
             <span className="rotulo">2 · Sobre você</span>
             <h1>{primeiro}, qual a sua idade?</h1>
             <p className="lead">Usamos só para ajustar as dicas, como o tamanho da reserva de emergência. Pode pular.</p>
-            <input className="campo-grande" id="bv-idade" autoFocus inputMode="numeric" placeholder="Idade" value={idade} onChange={(e) => setIdade(e.target.value.replace(/\D/g, "").slice(0, 3))} onKeyDown={enter} />
+            <InputDigitos className="campo-grande" id="bv-idade" autoFocus max={3} placeholder="Idade" value={idade} onChange={setIdade} onKeyDown={enter} />
           </>
         )}
 
@@ -111,7 +112,7 @@ export function BoasVindas({ aoTerminar, inicial }: { aoTerminar: (comTreino: bo
               })}
             </div>
             {meta && (
-              <label className="campo"><span>{meta.rotulo}</span><input id="bv-meta" inputMode="decimal" placeholder="R$ 0,00" value={metaTxt} onChange={(e) => setMetaTxt(e.target.value)} onKeyDown={enter} /><small className="muted">{meta.ajuda} Pode deixar em branco e definir depois.</small></label>
+              <label className="campo"><span>{meta.rotulo}</span><InputValor id="bv-meta" value={metaTxt} onChange={setMetaTxt} onKeyDown={enter} /><small className="muted">{meta.ajuda} Pode deixar em branco e definir depois.</small></label>
             )}
           </>
         )}
@@ -121,7 +122,7 @@ export function BoasVindas({ aoTerminar, inicial }: { aoTerminar: (comTreino: bo
             <span className="rotulo">5 · Ponto de partida</span>
             <h1>Quanto tem hoje na {uso === "empresa" ? "conta da empresa" : "sua conta"}?</h1>
             <p className="lead">É o saldo inicial. Daqui para frente, cada lançamento atualiza esse valor. Você pode cadastrar outras contas depois.</p>
-            <input className="campo-grande" id="bv-saldo" autoFocus inputMode="decimal" placeholder="R$ 0,00" value={saldoTxt} onChange={(e) => setSaldoTxt(e.target.value)} onKeyDown={enter} />
+            <InputValor grande id="bv-saldo" autoFocus value={saldoTxt} onChange={setSaldoTxt} onKeyDown={enter} aria-label="Saldo atual" />
           </>
         )}
 

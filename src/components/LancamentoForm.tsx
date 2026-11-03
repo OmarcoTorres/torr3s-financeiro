@@ -4,6 +4,7 @@ import { db, ehCartao, novoId, type Divisao, type Lancamento, type Status, type 
 import { hoje, mesDe, mesFechado, somarMeses } from "../lib/calc";
 import { dinheiro, lerValor, mesExtenso, numeroBR } from "../lib/format";
 import { BotaoConfirmar, Campo, Folha, Seg, useAviso, type DadosApp } from "./ui";
+import { CampoData, InputDigitos, InputPorcentagem, InputValor } from "./campos";
 
 export type Rascunho = Partial<Lancamento>;
 
@@ -168,13 +169,11 @@ export function LancamentoForm({ rascunho, fotoNova, fechar, dados }: { rascunho
       )}
       <fieldset disabled={bloqueado} style={{ border: 0, padding: 0, margin: 0, display: "grid", gap: 14, minWidth: 0 }}>
         <Seg rotulo="Tipo" valor={tipo} mudar={(t) => { setTipo(t); setCategoriaId(""); }} opcoes={[["despesa", "Despesa"], ["receita", "Receita"], ["transferencia", "Transferência"]]} />
-        <Campo rotulo="Valor (R$)">
-          <input className="valor-grande" inputMode="decimal" placeholder="0,00" value={valorTxt} onChange={(e) => setValorTxt(e.target.value)} id="f-valor" />
-        </Campo>
+        <div className="campo"><span>Valor</span><InputValor grande id="f-valor" value={valorTxt} onChange={setValorTxt} aria-label="Valor" /></div>
         <Campo rotulo="Descrição"><input id="f-desc" value={descricao} onChange={(e) => setDescricao(e.target.value)} placeholder="Ex.: Internet do escritório" maxLength={140} /></Campo>
         <div className="duas">
-          <Campo rotulo="Data"><input id="f-data" type="date" value={data} onChange={(e) => setData(e.target.value)} /></Campo>
-          <Campo rotulo="Vencimento"><input id="f-venc" type="date" value={vencimento} onChange={(e) => setVencimento(e.target.value)} /></Campo>
+          <div className="campo"><span>Data</span><CampoData id="f-data" valor={data} mudar={(v) => setData(v || hoje())} atalhos={["hoje", "ontem"]} obrigatoria /></div>
+          <div className="campo"><span>Vencimento</span><CampoData id="f-venc" valor={vencimento} mudar={(v) => { setVencimento(v); if (v && v > hoje()) setStatus("pendente"); }} atalhos={["+7", "+30"]} base={data} /></div>
         </div>
         <Seg rotulo="Situação" valor={status} mudar={setStatus} opcoes={[["pago", tipo === "receita" ? "Recebido" : "Pago"], ["pendente", "Pendente"]]} />
         {tipo !== "transferencia" && (
@@ -215,7 +214,7 @@ export function LancamentoForm({ rascunho, fotoNova, fechar, dados }: { rascunho
             {repetir !== "nao" && (
               <div className="duas" style={{ alignItems: "end" }}>
                 <Campo rotulo={repetir === "parcelado" ? "Número de parcelas" : "Por quantos meses"}>
-                  <input id="f-vezes" inputMode="numeric" value={vezes} onChange={(e) => setVezes(e.target.value.replace(/\D/g, ""))} />
+                  <InputDigitos id="f-vezes" value={vezes} onChange={setVezes} max={3} />
                 </Campo>
                 <p className="muted" style={{ margin: 0, fontSize: ".85rem" }}>
                   {repetir === "parcelado"
@@ -232,15 +231,16 @@ export function LancamentoForm({ rascunho, fotoNova, fechar, dados }: { rascunho
             <label className="chk"><input type="checkbox" checked={dividir} onChange={(e) => { setDividir(e.target.checked); if (e.target.checked && !partes.length) setPartes([{ pessoaId: "", txt: "" }]); }} />Dividir entre pessoas</label>
             {dividir && (
               <>
-                <Seg rotulo="Dividir por" valor={modoDiv} mudar={setModoDiv} opcoes={[["valor", "Valor (R$)"], ["pct", "Porcentagem"]]} />
+                <Seg rotulo="Dividir por" valor={modoDiv} mudar={(m) => { setModoDiv(m); setPartes(partes.map((x) => ({ ...x, txt: "" }))); }} opcoes={[["valor", "Valor (R$)"], ["pct", "Porcentagem"]]} />
                 {partes.map((p, i) => (
                   <div key={i} className="duas" style={{ gridTemplateColumns: "1fr 110px auto", alignItems: "center" }}>
                     <select aria-label="Pessoa" value={p.pessoaId} onChange={(e) => setPartes(partes.map((x, j) => (j === i ? { ...x, pessoaId: e.target.value } : x)))} className="btn" style={{ fontWeight: 600 }}>
                       <option value="">Pessoa</option>
                       {dados.pessoas.map((x) => <option key={x.id} value={x.id}>{x.nome}</option>)}
                     </select>
-                    <input aria-label={modoDiv === "pct" ? "Porcentagem" : "Valor"} inputMode="decimal" placeholder={modoDiv === "pct" ? "%" : "0,00"} value={p.txt} className="btn"
-                      onChange={(e) => setPartes(partes.map((x, j) => (j === i ? { ...x, txt: e.target.value } : x)))} />
+                    {modoDiv === "pct"
+                      ? <InputPorcentagem aria-label="Porcentagem" placeholder="%" className="entrada" value={p.txt} onChange={(v) => setPartes(partes.map((x, j) => (j === i ? { ...x, txt: v } : x)))} />
+                      : <InputValor aria-label="Valor" value={p.txt} onChange={(v) => setPartes(partes.map((x, j) => (j === i ? { ...x, txt: v } : x)))} />}
                     <button type="button" className="btn icone fantasma" aria-label="Remover pessoa" onClick={() => setPartes(partes.filter((_, j) => j !== i))}><Trash2 /></button>
                   </div>
                 ))}

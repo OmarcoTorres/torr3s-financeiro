@@ -7,6 +7,7 @@ import { dataBR, dinheiro, mesCurto, mesExtenso } from "../lib/format";
 import { montarTabela, NOME_COLUNA, TODAS_COLUNAS, type Tabela } from "../lib/relatorio";
 import { exportarCSV, exportarPDF } from "../lib/exportar";
 import { BotaoConfirmar, Campo, SeletorMes, useAviso, useConfig, type DadosApp } from "../components/ui";
+import { CampoData } from "../components/campos";
 
 type Aba = "fluxo" | "categorias" | "abertos" | "pessoas" | "comparativo" | "personalizado";
 const ABAS: [Aba, string][] = [
@@ -124,8 +125,8 @@ export function Relatorios({ dados }: { dados: DadosApp }) {
             </div>
           )}
           <div className="filtros">
-            <Campo rotulo="De"><input id="p-de" type="date" value={cfg.de} onChange={(e) => mudar({ de: e.target.value })} /></Campo>
-            <Campo rotulo="Até"><input id="p-ate" type="date" value={cfg.ate} onChange={(e) => mudar({ ate: e.target.value })} /></Campo>
+            <div className="campo"><span>De</span><CampoData id="p-de" valor={cfg.de} mudar={(v) => v && mudar({ de: v })} obrigatoria /></div>
+            <div className="campo"><span>Até</span><CampoData id="p-ate" valor={cfg.ate} mudar={(v) => v && mudar({ ate: v })} obrigatoria /></div>
             <Campo rotulo="Tipo"><select id="p-tipo" value={cfg.tipo ?? ""} onChange={(e) => mudar({ tipo: e.target.value as ConfigRelatorio["tipo"] })}><option value="">Todos</option><option value="receita">Receitas</option><option value="despesa">Despesas</option><option value="transferencia">Transferências</option></select></Campo>
             <Campo rotulo="Situação"><select id="p-sit" value={cfg.status ?? ""} onChange={(e) => mudar({ status: e.target.value as ConfigRelatorio["status"] })}><option value="">Todas</option><option value="pago">Pago</option><option value="aberto">Em aberto</option><option value="atrasado">Atrasado</option></select></Campo>
             <Campo rotulo="Categoria"><select id="p-cat" value={cfg.categoriaId ?? ""} onChange={(e) => mudar({ categoriaId: e.target.value })}><option value="">Todas</option>{dados.cats.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}</select></Campo>

@@ -5,6 +5,7 @@ import { saldoPessoa } from "../lib/calc";
 import { dataCurta, dinheiro } from "../lib/format";
 import { ItemLancamento } from "../components/ItemLancamento";
 import { BotaoConfirmar, Campo, Folha, useAviso, type DadosApp } from "../components/ui";
+import { InputNome, InputTelefone } from "../components/campos";
 
 export const TIPOS_PESSOA: [TipoPessoa, string][] = [["cliente", "Cliente"], ["fornecedor", "Fornecedor"], ["socio", "Sócio"], ["funcionario", "Funcionário"], ["outro", "Outro"]];
 const nomeTipo = (t: TipoPessoa) => TIPOS_PESSOA.find(([k]) => k === t)?.[1] ?? t;
@@ -108,9 +109,9 @@ function EditarPessoa({ p, fechar, dados }: { p: Partial<Pessoa> | null; fechar:
 
   return (
     <Folha titulo={p?.id ? "Editar pessoa" : "Nova pessoa"} aberta={!!p} fechar={fechar}>
-      <Campo rotulo="Nome"><input id="pe-nome" value={nome} onChange={(e) => setNome(e.target.value)} maxLength={100} /></Campo>
+      <Campo rotulo="Nome"><InputNome id="pe-nome" value={nome} onChange={setNome} maxLength={100} /></Campo>
       <Campo rotulo="Tipo"><select id="pe-tipo" value={tipo} onChange={(e) => setTipo(e.target.value as TipoPessoa)}>{TIPOS_PESSOA.map(([k, n]) => <option key={k} value={k}>{n}</option>)}</select></Campo>
-      <Campo rotulo="Telefone"><input id="pe-tel" type="tel" value={telefone} onChange={(e) => setTelefone(e.target.value)} /></Campo>
+      <Campo rotulo="Telefone"><InputTelefone id="pe-tel" value={telefone} onChange={setTelefone} placeholder="(11) 99999-0000" /></Campo>
       <Campo rotulo="Observação"><textarea id="pe-obs" value={obs} onChange={(e) => setObs(e.target.value)} /></Campo>
       <div className="linha-botoes" style={{ justifyContent: "space-between" }}>
         {p?.id ? <BotaoConfirmar confirmar={usos ? `Excluir mesmo? (${usos} lançamento(s) ficam sem pessoa)` : "Toque de novo para excluir"} onConfirm={excluir}>Excluir</BotaoConfirmar> : <span />}

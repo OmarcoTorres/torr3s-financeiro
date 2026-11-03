@@ -8,6 +8,7 @@ import { mesAtual, resumoMes } from "../lib/calc";
 import { dataCurta, dinheiro, lerValor, mesExtenso, numeroBR } from "../lib/format";
 import { apagarTudo, exportarBackup, importarBackup } from "../lib/backup";
 import { BotaoConfirmar, CORES, Campo, Folha, ICONES, IconeCategoria, Seg, SeletorMes, marcarProgresso, useAviso, useConfig, type DadosApp } from "../components/ui";
+import { InputDigitos, InputNome, InputValor } from "../components/campos";
 
 export type Secao = "" | "conta" | "openfinance" | "perfil" | "fechamento" | "categorias" | "contas" | "aparencia" | "backup";
 
@@ -200,7 +201,7 @@ function Contas({ dados }: { dados: DadosApp }) {
     return (
       <>
         <Campo rotulo="Nome"><input id="co-nome" value={edit.nome ?? ""} onChange={(e) => setEdit({ ...edit, nome: e.target.value })} placeholder="Ex.: Banco do Brasil" /></Campo>
-        <Campo rotulo="Saldo inicial (R$)"><input id="co-saldo" inputMode="decimal" value={edit.saldoTxt ?? ""} onChange={(e) => setEdit({ ...edit, saldoTxt: e.target.value })} placeholder="0,00" /></Campo>
+        <Campo rotulo="Saldo inicial"><InputValor id="co-saldo" value={edit.saldoTxt ?? ""} onChange={(v) => setEdit({ ...edit, saldoTxt: v })} /></Campo>
         <div className="campo"><span>Cor</span><div className="cores">{CORES.map((c) => <button key={c} type="button" aria-label={`Cor ${c}`} aria-pressed={(edit.cor ?? CORES[0]) === c} style={{ background: c }} onClick={() => setEdit({ ...edit, cor: c })} />)}</div></div>
         <div className="linha-botoes" style={{ justifyContent: "space-between" }}>
           <div className="linha-botoes">
@@ -317,8 +318,8 @@ function EditarPerfil({ fechar }: { fechar: () => void }) {
   return (
     <>
       <div className="duas">
-        <Campo rotulo="Nome"><input id="pf-nome" value={nome} onChange={(e) => setNome(e.target.value)} maxLength={60} /></Campo>
-        <Campo rotulo="Idade"><input id="pf-idade" inputMode="numeric" value={idade} onChange={(e) => setIdade(e.target.value.replace(/\D/g, "").slice(0, 3))} /></Campo>
+        <Campo rotulo="Nome"><InputNome id="pf-nome" value={nome} onChange={setNome} maxLength={60} /></Campo>
+        <Campo rotulo="Idade"><InputDigitos id="pf-idade" max={3} value={idade} onChange={setIdade} /></Campo>
       </div>
       {perfil.uso === "empresa" && <Campo rotulo="Empresa"><input id="pf-emp" value={empresa} onChange={(e) => setEmpresa(e.target.value)} maxLength={60} /></Campo>}
       <Campo rotulo="Objetivo agora">
@@ -327,7 +328,7 @@ function EditarPerfil({ fechar }: { fechar: () => void }) {
         </select>
       </Campo>
       <p className="muted" style={{ fontSize: ".86rem", marginTop: -6 }}>{OBJETIVOS[objetivo].descricao[perfil.uso]}</p>
-      {meta && <Campo rotulo={meta.rotulo}><input id="pf-meta" inputMode="decimal" placeholder="R$ 0,00" value={metaTxt} onChange={(e) => setMetaTxt(e.target.value)} /></Campo>}
+      {meta && <Campo rotulo={meta.rotulo}><InputValor id="pf-meta" value={metaTxt} onChange={setMetaTxt} /></Campo>}
       <p className="muted" style={{ fontSize: ".82rem" }}>Uso: {perfil.uso === "empresa" ? "empresa" : "pessoal"}. Para trocar, apague os dados em Backup e dados e comece de novo.</p>
       <button type="button" className="btn pri" onClick={salvar}>Salvar</button>
     </>
