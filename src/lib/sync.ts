@@ -2,6 +2,7 @@ import Dexie from "dexie";
 import { useSyncExternalStore } from "react";
 import { db, type Perfil } from "../db";
 import { supabase } from "./supabase";
+import { desligarPushAoSair } from "./push";
 
 /**
  * Sincronização com o Supabase.
@@ -298,6 +299,8 @@ export async function sairDaConta() {
   try { await ciclo(); } catch { /* segue mesmo offline */ }
   window.clearInterval(relogio);
   sessao = null;
+  // Antes do signOut (ainda com permissão): o aparelho deixa de receber os avisos desta conta.
+  await desligarPushAoSair();
   await supabase.auth.signOut();
   await aplicarRemoto([...TABELAS_DADOS, "fila", "config"], async () => {
     for (const t of [...TABELAS_DADOS, "fila", "config"]) await db.table(t).clear();

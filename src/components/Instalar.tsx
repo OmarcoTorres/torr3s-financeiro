@@ -142,7 +142,7 @@ export function Notificacoes({ userId, irInstalar }: { userId: string; irInstala
             <button type="button" className="btn fantasma" disabled={trabalhando} onClick={() => rodar(async () => { await desativarPush(); setAtivoAqui(false); }, "Notificações desligadas neste aparelho.")}>Desligar aqui</button>
           </div>
         ) : (
-          <button type="button" className="btn pri" disabled={trabalhando} onClick={() => rodar(async () => { await ativarPush(userId); setAtivoAqui(true); if (prefs && !prefs.ativo) await salvarPrefs({ ...prefs, ativo: true }); }, "Notificações ativadas.")}><Bell />Ativar notificações</button>
+          <button type="button" className="btn pri" disabled={trabalhando} onClick={() => rodar(async () => { await ativarPush(); setAtivoAqui(true); if (prefs && !prefs.ativo) await salvarPrefs({ ...prefs, ativo: true }); }, "Notificações ativadas.")}><Bell />Ativar notificações</button>
         )}
         <span className="muted" style={{ fontSize: ".8rem" }}>Os lembretes chegam todo dia às 8h, só quando há algo para avisar.</span>
       </div>
