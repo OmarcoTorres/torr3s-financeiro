@@ -1,6 +1,6 @@
-# Tostão
+# Invest+
 
-Financeiro do dia a dia, para você ou para a sua empresa: lançamentos, pessoas, fechamento mensal, relatórios editáveis, leitura de conta por foto e um mini assistente.
+Dashboard financeiro para você ou para a sua empresa: transações, cartões de crédito, metas, lançamentos, pessoas, fechamento mensal, relatórios editáveis, leitura de conta por foto e um mini assistente.
 
 - **Dados**: ficam só no aparelho (IndexedDB). Exporte backups em *Mais › Backup e dados*.
 - **IA** (leitura de conta e assistente): funções em `api/` rodando na Vercel com o Claude. Exige `ANTHROPIC_API_KEY` nas variáveis de ambiente da Vercel.

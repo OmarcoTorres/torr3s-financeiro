@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowLeft, BarChart3, Briefcase, CalendarClock, Camera, Compass, PiggyBank, Rocket, Search, ShieldCheck, User, Users } from "lucide-react";
+import { ArrowLeft, BarChart3, Briefcase, CalendarClock, Compass, CreditCard, PiggyBank, Rocket, Search, ShieldCheck, Target, User, Users } from "lucide-react";
 import { aplicarPerfil, type Objetivo, type Perfil, type Uso } from "../db";
 import { lerValor } from "../lib/format";
 import { OBJETIVOS } from "../lib/perfil";
@@ -47,20 +47,20 @@ export function BoasVindas({ aoTerminar, inicial }: { aoTerminar: (comTreino: bo
     <div className="boasvindas">
       <div className="topo-bv">
         {etapa > 0 && etapa < ETAPAS ? <button type="button" className="btn icone fantasma" aria-label="Voltar" onClick={() => setEtapa(etapa - 1)}><ArrowLeft /></button> : <img src="/icon.svg" alt="" />}
-        <b>Tostão</b>
+        <b>Invest+</b>
         {etapa > 0 && <div className="etapas" aria-label={`Etapa ${etapa} de ${ETAPAS}`}>{Array.from({ length: ETAPAS }, (_, i) => <i key={i} className={i < etapa ? "on" : ""} />)}</div>}
       </div>
 
       <div className="corpo">
         {etapa === 0 && (
           <>
-            <span className="rotulo">Financeiro do dia a dia</span>
-            <h1>Seu dinheiro, em ordem, sem planilha.</h1>
+            <span className="rotulo">Seu financeiro, simples</span>
+            <h1>Todas as suas finanças em um só lugar.</h1>
             <p className="lead">Em dois minutos a gente monta o app do seu jeito: para você ou para a sua empresa, com o objetivo que importa agora.</p>
             <div className="vitrine">
-              <div><CalendarClock /><b>Nada vence escondido</b><span>Contas a pagar e a receber com aviso.</span></div>
-              <div><Camera /><b>Conta pela foto</b><span>Fotografe o boleto e confira.</span></div>
-              <div><BarChart3 /><b>Fechamento do mês</b><span>Relatórios prontos e editáveis.</span></div>
+              <div><BarChart3 /><b>Dashboard completo</b><span>Saldo, receitas, despesas e gastos por categoria.</span></div>
+              <div><CreditCard /><b>Cartões de crédito</b><span>Faturas, limite e vencimento de cada cartão.</span></div>
+              <div><Target /><b>Metas</b><span>Defina objetivos e acompanhe o progresso.</span></div>
             </div>
           </>
         )}
@@ -128,7 +128,7 @@ export function BoasVindas({ aoTerminar, inicial }: { aoTerminar: (comTreino: bo
         {etapa === 6 && (
           <>
             <span className="rotulo">Tudo pronto</span>
-            <h1>{primeiro}, seu Tostão está montado.</h1>
+            <h1>{primeiro}, seu Invest+ está pronto.</h1>
             <p className="lead">
               Categorias {uso === "empresa" ? "de empresa" : "pessoais"}, foco em <b>{OBJETIVOS[objetivo].foco.toLowerCase()}</b>
               {meta && lerValor(metaTxt) ? " e a sua meta do mês" : ""}. Agora um tour rápido de 1 minuto mostra onde fica cada coisa.

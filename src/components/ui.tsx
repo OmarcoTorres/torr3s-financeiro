@@ -11,11 +11,12 @@ export const ICONES: Record<string, LucideIcon> = {
   utensils: Utensils, monitor: Monitor, tag: Tag, car: Car, cart: ShoppingCart, heart: Heart, school: GraduationCap,
   plane: Plane, wrench: Wrench, megaphone: Megaphone, piggy: PiggyBank, receipt: Receipt,
 };
-export const CORES = ["#b8681c", "#16202c", "#1f8a5b", "#2c7da0", "#3d7ea6", "#4a5bd0", "#8e5ad8", "#b23a48", "#d0604a", "#c2702b", "#d89a1c", "#5e9f3e", "#6b7a74"];
+export const CORES = ["#5b5bd6", "#8b7cf6", "#4cb3e6", "#3fbfa8", "#1f9d63", "#a3c93a", "#f2b84b", "#f08a4b", "#e5604d", "#ef6b8a", "#c06bd8", "#6b7090"];
 
 export function IconeCategoria({ icone, cor, transferencia }: { icone?: string; cor?: string; transferencia?: boolean }) {
   const I = transferencia ? ArrowLeftRight : ICONES[icone ?? "tag"] ?? Tag;
-  return <span className="ic" style={{ background: transferencia ? "var(--muted)" : cor ?? "var(--muted)" }}><I aria-hidden /></span>;
+  const c = transferencia ? "var(--muted)" : cor ?? "var(--muted)";
+  return <span className="ic" style={{ background: `color-mix(in srgb, ${c} 15%, var(--surface))`, color: c }}><I aria-hidden /></span>;
 }
 
 /** Todos os dados do aparelho, ao vivo. */
@@ -25,8 +26,9 @@ export function useDados() {
   const contas = useLiveQuery(() => db.contas.toArray(), []);
   const pessoas = useLiveQuery(() => db.pessoas.toArray(), []);
   const fech = useLiveQuery(() => db.fechamentos.toArray(), []);
-  const pronto = !!(lanc && cats && contas && pessoas && fech);
-  return { pronto, lanc: lanc ?? [], cats: cats ?? [], contas: contas ?? [], pessoas: pessoas ?? [], fech: fech ?? [] };
+  const metas = useLiveQuery(() => db.metas.toArray(), []);
+  const pronto = !!(lanc && cats && contas && pessoas && fech && metas);
+  return { pronto, lanc: lanc ?? [], cats: cats ?? [], contas: contas ?? [], pessoas: pessoas ?? [], fech: fech ?? [], metas: metas ?? [] };
 }
 export type DadosApp = ReturnType<typeof useDados>;
 

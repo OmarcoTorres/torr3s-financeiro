@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { CalendarCheck, ChevronRight, Database, GraduationCap, Lock, LockOpen, Palette, Tags, UserRound, Wallet } from "lucide-react";
-import { db, novoId, type Categoria, type Conta, type Objetivo, type Perfil } from "../db";
+import { CalendarCheck, ChevronRight, CreditCard, Database, GraduationCap, Lock, LockOpen, Palette, Tags, UserRound, Users, Wallet } from "lucide-react";
+import { db, ehCartao, novoId, type Categoria, type Conta, type Objetivo, type Perfil } from "../db";
 import { OBJETIVOS } from "../lib/perfil";
 import { mesAtual, resumoMes, somarMeses } from "../lib/calc";
 import { dataCurta, dinheiro, lerValor, mesExtenso, numeroBR } from "../lib/format";
@@ -9,7 +9,7 @@ import { BotaoConfirmar, CORES, Campo, Folha, ICONES, IconeCategoria, Seg, marca
 
 export type Secao = "" | "perfil" | "fechamento" | "categorias" | "contas" | "aparencia" | "backup";
 
-export function Mais({ dados, secao, setSecao, refazerTour }: { dados: DadosApp; secao: Secao; setSecao: (s: Secao) => void; refazerTour: () => void }) {
+export function Mais({ dados, secao, setSecao, refazerTour, irAba }: { dados: DadosApp; secao: Secao; setSecao: (s: Secao) => void; refazerTour: () => void; irAba: (a: "cartoes" | "pessoas") => void }) {
   const fechar = () => setSecao("");
   useEffect(() => { if (secao === "contas") marcarProgresso("contas"); }, [secao]);
   const itens: [Secao, typeof Wallet, string, string][] = [
@@ -22,10 +22,16 @@ export function Mais({ dados, secao, setSecao, refazerTour }: { dados: DadosApp;
   ];
   return (
     <>
+      <section className="card so-celular">
+        <div className="menu-lista">
+          <button type="button" onClick={() => irAba("cartoes")}><span className="ic-m"><CreditCard /></span><span>Cartões de crédito<small>Faturas, limite e vencimento</small></span><ChevronRight aria-hidden /></button>
+          <button type="button" onClick={() => irAba("pessoas")}><span className="ic-m"><Users /></span><span>Pessoas<small>Clientes, fornecedores, família</small></span><ChevronRight aria-hidden /></button>
+        </div>
+      </section>
       <section className="card">
         <div className="menu-lista">
           {itens.map(([k, I, t, d]) => (
-            <button key={k} type="button" onClick={() => setSecao(k)}><I aria-hidden /><span>{t}<small>{d}</small></span><ChevronRight aria-hidden /></button>
+            <button key={k} type="button" onClick={() => setSecao(k)}><span className="ic-m"><I aria-hidden /></span><span>{t}<small>{d}</small></span><ChevronRight aria-hidden /></button>
           ))}
         </div>
       </section>
@@ -47,7 +53,7 @@ export function Mais({ dados, secao, setSecao, refazerTour }: { dados: DadosApp;
 function Fechamento({ dados }: { dados: DadosApp }) {
   const aviso = useAviso();
   const [mes, setMes] = useState(mesAtual());
-  const r = resumoMes(mes, dados.contas, dados.lanc);
+  const r = resumoMes(mes, dados.contas.filter((c) => !ehCartao(c)), dados.lanc);
   const fechado = dados.fech.find((f) => f.mes === mes);
   async function fechar() {
     await db.fechamentos.put({ mes, fechadoEm: new Date().toISOString(), resumo: { saldoInicial: r.saldoInicial, entradas: r.entradas, saidas: r.saidas, saldoFinal: r.saldoFinal, pendencias: r.pendencias.length } });
@@ -179,7 +185,7 @@ function Contas({ dados }: { dados: DadosApp }) {
   const [edit, setEdit] = useState<(Partial<Conta> & { saldoTxt?: string }) | null>(null);
   async function salvar() {
     if (!edit?.nome?.trim()) { aviso("Escreva o nome."); return; }
-    await db.contas.put({ id: edit.id ?? novoId(), nome: edit.nome.trim(), saldoInicial: lerValor(edit.saldoTxt ?? "0") ?? 0, cor: edit.cor ?? CORES[0] });
+    await db.contas.put({ id: edit.id ?? novoId(), nome: edit.nome.trim(), saldoInicial: lerValor(edit.saldoTxt ?? "0") ?? 0, cor: edit.cor ?? CORES[0], tipo: "conta" });
     aviso("Conta salva."); setEdit(null);
   }
   async function excluir() {
@@ -209,9 +215,9 @@ function Contas({ dados }: { dados: DadosApp }) {
   return (
     <>
       <div className="lista">
-        {dados.contas.map((c) => (
+        {dados.contas.filter((c) => !ehCartao(c)).map((c) => (
           <button key={c.id} type="button" className="item" style={{ gridTemplateColumns: "38px 1fr auto" }} onClick={() => setEdit({ ...c, saldoTxt: numeroBR(c.saldoInicial) })}>
-            <span className="ic" style={{ background: c.cor }}><Wallet size={18} /></span>
+            <span className="ic" style={{ background: `color-mix(in srgb, ${c.cor} 15%, var(--surface))`, color: c.cor }}><Wallet size={18} /></span>
             <div className="tt">{c.nome}</div>
             <span className="muted num" style={{ fontSize: ".82rem" }}>inicial {dinheiro(c.saldoInicial)}</span>
           </button>
@@ -226,7 +232,7 @@ function Aparencia() {
   const aviso = useAviso();
   const [empresa, setEmpresa] = useConfig("empresa", "");
   const [logo, setLogo] = useConfig<string>("logo", "");
-  const [cor, setCor] = useConfig("cor", "#b8681c");
+  const [cor, setCor] = useConfig("cor", "#5b5bd6");
   const [tema, setTema] = useConfig<"sistema" | "claro" | "escuro">("tema", "sistema");
   const [nome, setNome] = useState(empresa);
   useEffect(() => { setNome(empresa); }, [empresa]);

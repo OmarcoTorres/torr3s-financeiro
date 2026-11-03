@@ -18,7 +18,7 @@ const novoConfig = (): ConfigRelatorio => ({ de: `${mesAtual()}-01`, ate: fimDoM
 
 export function Relatorios({ dados }: { dados: DadosApp }) {
   const aviso = useAviso();
-  const [empresa] = useConfig("empresa", "Tostão");
+  const [empresa] = useConfig("empresa", "Invest+");
   const [aba, setAba] = useState<Aba>("fluxo");
   const [mes, setMes] = useState(mesAtual());
   const [meses, setMeses] = useState(6);

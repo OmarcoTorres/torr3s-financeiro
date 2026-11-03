@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Camera, Lock, Trash2 } from "lucide-react";
-import { db, novoId, type Divisao, type Lancamento, type Status, type Tipo } from "../db";
+import { db, ehCartao, novoId, type Divisao, type Lancamento, type Status, type Tipo } from "../db";
 import { hoje, mesDe, mesFechado, somarMeses } from "../lib/calc";
 import { dinheiro, lerValor, mesExtenso, numeroBR } from "../lib/format";
 import { BotaoConfirmar, Campo, Folha, Seg, useAviso, type DadosApp } from "./ui";
@@ -43,7 +43,7 @@ export function LancamentoForm({ rascunho, fotoNova, fechar, dados }: { rascunho
     setVencimento(r.vencimento ?? "");
     setStatus(r.status ?? (r.vencimento && r.vencimento > hoje() ? "pendente" : "pago"));
     setCategoriaId(r.categoriaId ?? "");
-    setContaId(r.contaId ?? dados.contas[0]?.id ?? "");
+    setContaId(r.contaId ?? dados.contas.find((c) => !ehCartao(c))?.id ?? dados.contas[0]?.id ?? "");
     setContaDestinoId(r.contaDestinoId ?? "");
     setPessoaId(r.pessoaId ?? "");
     setObservacao(r.observacao ?? "");
@@ -149,7 +149,7 @@ export function LancamentoForm({ rascunho, fotoNova, fechar, dados }: { rascunho
     fechar();
   }
 
-  const titulo = editando ? "Editar lançamento" : "Novo lançamento";
+  const titulo = editando ? "Editar transação" : "Nova transação";
   return (
     <Folha titulo={titulo} aberta={!!rascunho} fechar={fechar}>
       {bloqueado && (
@@ -177,14 +177,15 @@ export function LancamentoForm({ rascunho, fotoNova, fechar, dados }: { rascunho
         <div className="duas">
           <Campo rotulo={tipo === "transferencia" ? "Da conta" : "Conta"}>
             <select id="f-conta" value={contaId} onChange={(e) => setContaId(e.target.value)}>
-              {dados.contas.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+              <optgroup label="Contas">{dados.contas.filter((c) => !ehCartao(c)).map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}</optgroup>
+              {dados.contas.some(ehCartao) && <optgroup label="Cartões de crédito">{dados.contas.filter(ehCartao).map((c) => <option key={c.id} value={c.id}>{c.nome}{c.final ? ` •••• ${c.final}` : ""}</option>)}</optgroup>}
             </select>
           </Campo>
           {tipo === "transferencia" ? (
             <Campo rotulo="Para a conta">
               <select id="f-dest" value={contaDestinoId} onChange={(e) => setContaDestinoId(e.target.value)}>
                 <option value="">Escolha</option>
-                {dados.contas.filter((c) => c.id !== contaId).map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                {dados.contas.filter((c) => c.id !== contaId).map((c) => <option key={c.id} value={c.id}>{ehCartao(c) ? `Cartão ${c.nome}` : c.nome}</option>)}
               </select>
             </Campo>
           ) : (

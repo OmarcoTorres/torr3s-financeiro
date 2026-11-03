@@ -1,5 +1,5 @@
 import { Lock, Paperclip, Repeat } from "lucide-react";
-import type { Lancamento } from "../db";
+import { ehCartao, type Lancamento } from "../db";
 import { mesFechado, situacao } from "../lib/calc";
 import { dataCurta, dinheiro } from "../lib/format";
 import { IconeCategoria, type DadosApp } from "./ui";
@@ -22,6 +22,7 @@ export function ItemLancamento({ l, dados, abrir, mostrarData }: { l: Lancamento
         <div className="meta">
           {mostrarData && <span>{dataCurta(l.data)}</span>}
           <span>{l.tipo === "transferencia" ? `${conta?.nome ?? "?"} → ${destino?.nome ?? "?"}` : cat?.nome ?? "Sem categoria"}</span>
+          {conta && ehCartao(conta) && l.tipo !== "transferencia" && <span>· {conta.nome}{conta.final ? ` •••• ${conta.final}` : ""}</span>}
           {pessoa && <span>· {pessoa.nome}</span>}
           {l.vencimento && l.status === "pendente" && <span>· vence {dataCurta(l.vencimento)}</span>}
           {l.recorrente && <Repeat size={12} aria-label="Mensal" />}

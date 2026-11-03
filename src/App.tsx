@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { BarChart3, Home, List, MessageSquareText, MoreHorizontal, Plus, ScanLine, Users } from "lucide-react";
+import { ArrowLeftRight, BarChart3, CreditCard, LayoutGrid, MessageSquareText, MoreHorizontal, Plus, ScanLine, Settings, Target, Users } from "lucide-react";
 import { db, removerExemplos, type Lancamento, type Perfil } from "./db";
 import { useConfig, useDados, marcarProgresso } from "./components/ui";
 import { LancamentoForm, type Rascunho } from "./components/LancamentoForm";
@@ -9,27 +9,35 @@ import { Assistente } from "./components/Assistente";
 import { BoasVindas } from "./components/BoasVindas";
 import { Tour, type PassoTour } from "./components/Tour";
 import { saudacao } from "./lib/perfil";
-import { Inicio } from "./pages/Inicio";
+import { Inicio, type Destino } from "./pages/Inicio";
+import { Cartoes } from "./pages/Cartoes";
+import { Metas } from "./pages/Metas";
 import { Lancamentos } from "./pages/Lancamentos";
 import { Relatorios } from "./pages/Relatorios";
 import { Pessoas } from "./pages/Pessoas";
 import { Mais, type Secao } from "./pages/Mais";
 
-type Aba = "inicio" | "lancamentos" | "relatorios" | "pessoas" | "mais";
-const ABAS: [Aba, string, typeof Home][] = [
-  ["inicio", "Início", Home], ["lancamentos", "Lançamentos", List], ["relatorios", "Relatórios", BarChart3],
-  ["pessoas", "Pessoas", Users], ["mais", "Mais", MoreHorizontal],
+type Aba = "inicio" | "transacoes" | "cartoes" | "metas" | "relatorios" | "pessoas" | "mais";
+/** [aba, nome, ícone, onde aparece]: "ambos", só no computador (barra lateral) ou só no celular (barra inferior). */
+const ABAS: [Aba, string, typeof LayoutGrid, "ambos" | "desktop" | "celular"][] = [
+  ["inicio", "Dashboard", LayoutGrid, "ambos"],
+  ["transacoes", "Transações", ArrowLeftRight, "ambos"],
+  ["cartoes", "Cartões", CreditCard, "desktop"],
+  ["metas", "Metas", Target, "ambos"],
+  ["relatorios", "Relatórios", BarChart3, "ambos"],
+  ["pessoas", "Pessoas", Users, "desktop"],
+  ["mais", "Mais", MoreHorizontal, "ambos"],
 ];
-const TITULO: Record<Aba, string> = { inicio: "", lancamentos: "Lançamentos", relatorios: "Relatórios", pessoas: "Pessoas", mais: "Mais opções" };
+const TITULO: Record<Aba, string> = { inicio: "", transacoes: "Transações", cartoes: "Cartões", metas: "Metas", relatorios: "Relatórios", pessoas: "Pessoas", mais: "Ajustes" };
 
 const TOUR: PassoTour[] = [
-  { alvo: "extrato", titulo: "Seu extrato", texto: "O saldo de todas as contas, e quanto entrou, saiu e sobrou neste mês. A linha mostra o saldo dia a dia." },
-  { alvo: "lancar", titulo: "Lançar é por aqui", texto: "Gasto, recebimento ou transferência. Dá para parcelar, repetir todo mês, anexar foto e dividir com outras pessoas." },
+  { alvo: "extrato", titulo: "Visão geral", texto: "Saldo das contas, receitas e despesas do mês e o total das faturas de cartão." },
+  { alvo: "lancar", titulo: "Lançar é por aqui", texto: "Gasto, recebimento, compra no cartão ou transferência. Dá para parcelar, repetir todo mês, anexar foto e dividir com outras pessoas." },
   { alvo: "ler-conta", titulo: "Conta pela foto", texto: "Fotografe um boleto ou fatura: valor, vencimento e categoria vêm preenchidos, e você confere antes de salvar." },
-  { alvo: "nav-lancamentos", titulo: "Todos os lançamentos", texto: "Busca e filtros por período, categoria, conta, pessoa e situação. Toque em um item para editar." },
+  { alvo: "nav-transacoes", titulo: "Transações", texto: "Todas as movimentações, com busca e filtros por período, categoria, conta, pessoa e situação." },
+  { alvo: "nav-metas", titulo: "Metas", texto: "Defina objetivos, registre quanto guardou e veja quanto falta por mês." },
   { alvo: "nav-relatorios", titulo: "Relatórios", texto: "Fluxo de caixa, despesas por categoria, a pagar e a receber. Monte o seu e exporte em PDF ou planilha." },
-  { alvo: "nav-pessoas", titulo: "Pessoas", texto: "Clientes, fornecedores, sócios, família. Cada ficha mostra quanto a pessoa deve e quanto você deve a ela." },
-  { alvo: "nav-mais", titulo: "Fechamento e ajustes", texto: "Feche o mês, edite categorias e contas, mude cores e faça backup. O tour pode ser refeito por aqui." },
+  { alvo: "nav-mais", titulo: "Cartões e ajustes", texto: "Cartões de crédito, pessoas, fechamento do mês, categorias, contas, aparência e backup." },
   { alvo: "passos", titulo: "Seu passo a passo", texto: "Uma lista curta para deixar tudo pronto. Cada item leva direto para onde precisa." },
 ];
 
@@ -37,7 +45,7 @@ const TOUR: PassoTour[] = [
 function corTexto(hex: string) {
   const n = parseInt(hex.replace("#", ""), 16);
   const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b > 160 ? "#141b24" : "#ffffff";
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b > 160 ? "#1d2142" : "#ffffff";
 }
 
 export default function App() {
@@ -45,12 +53,12 @@ export default function App() {
   const [perfil, perfilCarregado] = usePerfil();
   const [empresa] = useConfig("empresa", "");
   const [logo] = useConfig<string>("logo", "");
-  const [cor] = useConfig("cor", "#b8681c");
+  const [cor] = useConfig("cor", "#5b5bd6");
   const [tema] = useConfig<"sistema" | "claro" | "escuro">("tema", "sistema");
   const [tourPendente, setTourPendente] = useConfig("tourPendente", false);
 
   const [aba, setAba] = useState<Aba>(() => {
-    const h = location.hash.slice(1) as Aba;
+    const h = (location.hash.slice(1) === "lancamentos" ? "transacoes" : location.hash.slice(1)) as Aba;
     return ABAS.some(([k]) => k === h) ? h : "inicio";
   });
   const [secao, setSecao] = useState<Secao>("");
@@ -69,15 +77,15 @@ export default function App() {
     root.style.setProperty("--accent-ink-base", corTexto(cor));
     if (tema === "sistema") root.removeAttribute("data-theme"); else root.setAttribute("data-theme", tema);
   }, [cor, tema]);
-  useEffect(() => { document.title = empresa ? `Tostão · ${empresa}` : "Tostão"; }, [empresa]);
+  useEffect(() => { document.title = empresa ? `Invest+ · ${empresa}` : "Invest+"; }, [empresa]);
   useEffect(() => {
     if (perfil && tourPendente) { setAba("inicio"); setTimeout(() => setTour(true), 350); setTourPendente(false); }
   }, [perfil, tourPendente, setTourPendente]);
 
   const abrir = (l: Lancamento) => { setFotoNova(undefined); setRascunho(l); };
   const novo = () => { setFotoNova(undefined); setRascunho({ tipo: "despesa" }); };
-  const ir = (d: "lancamentos" | "relatorios" | "pessoas" | "fechamento" | "contas" | "backup" | "perfil") => {
-    if (d === "lancamentos" || d === "relatorios" || d === "pessoas") { setAba(d); return; }
+  const ir = (d: Destino) => {
+    if (d === "transacoes" || d === "relatorios" || d === "pessoas" || d === "cartoes" || d === "metas") { setAba(d); setSecao(""); return; }
     setAba("mais"); setSecao(d);
   };
 
@@ -87,9 +95,14 @@ export default function App() {
   return (
     <div className="app">
       <nav className="nav" aria-label="Seções">
-        <div className="marca"><img src="/icon.svg" alt="" />Tostão</div>
-        {ABAS.map(([k, nome, I]) => (
-          <button key={k} type="button" data-tour={`nav-${k}`} aria-current={aba === k ? "page" : undefined} onClick={() => { setAba(k); setSecao(""); }}><I aria-hidden />{nome}</button>
+        <div className="marca"><img src="/icon.svg" alt="" />Invest+</div>
+        {ABAS.map(([k, nome, I, onde]) => (
+          <Fragment key={k}>
+            {k === "mais" && <div className="sep" />}
+            <button key={k} type="button" className={onde === "desktop" ? "so-desktop" : undefined} data-tour={`nav-${k}`} aria-current={aba === k ? "page" : undefined} onClick={() => { setAba(k); setSecao(""); }}>
+              {k === "mais" ? <><MoreHorizontal className="so-celular" aria-hidden /><Settings className="so-desktop" aria-hidden /><span className="so-celular">Mais</span><span className="so-desktop">Ajustes</span></> : <><I aria-hidden />{nome}</>}
+            </button>
+          </Fragment>
         ))}
       </nav>
       <main className="conteudo">
@@ -106,10 +119,12 @@ export default function App() {
         </header>
 
         {aba === "inicio" && <Inicio dados={dados} perfil={perfil} abrir={abrir} novo={novo} lerConta={() => setLerAberto(true)} perguntar={() => setPerguntaAberta(true)} ir={ir} />}
-        {aba === "lancamentos" && <Lancamentos dados={dados} abrir={abrir} />}
+        {aba === "transacoes" && <Lancamentos dados={dados} abrir={abrir} />}
+        {aba === "cartoes" && <Cartoes dados={dados} abrir={abrir} pagar={(r) => { setFotoNova(undefined); setRascunho(r); }} />}
+        {aba === "metas" && <Metas dados={dados} />}
         {aba === "relatorios" && <Relatorios dados={dados} />}
         {aba === "pessoas" && <Pessoas dados={dados} abrir={abrir} />}
-        {aba === "mais" && <Mais dados={dados} secao={secao} setSecao={setSecao} refazerTour={() => { setAba("inicio"); setTimeout(() => setTour(true), 300); }} />}
+        {aba === "mais" && <Mais dados={dados} secao={secao} setSecao={setSecao} irAba={(a) => setAba(a)} refazerTour={() => { setAba("inicio"); setTimeout(() => setTour(true), 300); }} />}
       </main>
 
       <button type="button" className="fab" data-tour="lancar" aria-label="Novo lançamento" onClick={novo}><Plus />Lançar</button>

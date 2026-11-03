@@ -33,7 +33,20 @@ export type TipoPessoa = "cliente" | "fornecedor" | "socio" | "funcionario" | "o
 export interface Pessoa { id: string; nome: string; tipo: TipoPessoa; telefone?: string; observacao?: string; exemplo?: boolean }
 
 export interface Categoria { id: string; nome: string; tipo: "receita" | "despesa"; cor: string; icone: string; paiId?: string }
-export interface Conta { id: string; nome: string; saldoInicial: number; cor: string }
+/** Conta bancária, carteira ou cartão de crédito (tipo "cartao": o saldo negativo é a fatura em aberto). */
+export interface Conta {
+  id: string; nome: string; saldoInicial: number; cor: string;
+  tipo?: "conta" | "cartao";
+  limite?: number;        // cartão: limite em centavos
+  vencimentoDia?: number; // cartão: dia do vencimento da fatura
+  final?: string;         // cartão: últimos 4 dígitos
+}
+export const ehCartao = (c?: Conta) => c?.tipo === "cartao";
+
+export interface Meta {
+  id: string; nome: string; alvo: number; guardado: number; prazo?: string; // AAAA-MM
+  icone: string; cor: string; aportes: { data: string; valor: number }[]; criadoEm: string;
+}
 export interface Foto { id: string; blob: Blob }
 
 export interface Fechamento {
@@ -68,6 +81,7 @@ class Banco extends Dexie {
   fechamentos!: EntityTable<Fechamento, "mes">;
   relatorios!: EntityTable<RelatorioSalvo, "id">;
   config!: EntityTable<Config, "chave">;
+  metas!: EntityTable<Meta, "id">;
 
   constructor() {
     super("financeiro");
@@ -81,6 +95,7 @@ class Banco extends Dexie {
       relatorios: "id",
       config: "chave",
     });
+    this.version(2).stores({ metas: "id" });
   }
 }
 
@@ -105,33 +120,33 @@ const c = (nome: string, tipo: "receita" | "despesa", cor: string, icone: string
 
 const CATEGORIAS: Record<Uso, CatBase[]> = {
   empresa: [
-    c("Vendas e serviços", "receita", "#1f8a5b", "briefcase"),
-    c("Outras receitas", "receita", "#2c7da0", "plus"),
-    c("Aluguel", "despesa", "#8e5ad8", "home"),
-    c("Folha e pró-labore", "despesa", "#d0604a", "users"),
-    c("Impostos", "despesa", "#b23a48", "landmark"),
-    c("Internet e telefone", "despesa", "#3d7ea6", "wifi"),
-    c("Energia e água", "despesa", "#d89a1c", "zap"),
-    c("Combustível", "despesa", "#c2702b", "fuel"),
-    c("Fornecedores", "despesa", "#4a5bd0", "cart"),
-    c("Marketing", "despesa", "#8e5ad8", "megaphone"),
-    c("Software e assinaturas", "despesa", "#2c7da0", "monitor"),
-    c("Outras despesas", "despesa", "#6b7a74", "tag"),
+    c("Vendas e serviços", "receita", "#1f9d63", "briefcase"),
+    c("Outras receitas", "receita", "#4cb3e6", "plus"),
+    c("Aluguel", "despesa", "#8b7cf6", "home"),
+    c("Folha e pró-labore", "despesa", "#f08a4b", "users"),
+    c("Impostos", "despesa", "#e5604d", "landmark"),
+    c("Internet e telefone", "despesa", "#4cb3e6", "wifi"),
+    c("Energia e água", "despesa", "#f2b84b", "zap"),
+    c("Combustível", "despesa", "#f08a4b", "fuel"),
+    c("Fornecedores", "despesa", "#5b5bd6", "cart"),
+    c("Marketing", "despesa", "#8b7cf6", "megaphone"),
+    c("Software e assinaturas", "despesa", "#4cb3e6", "monitor"),
+    c("Outras despesas", "despesa", "#6b7090", "tag"),
   ],
   pessoal: [
-    c("Salário", "receita", "#1f8a5b", "briefcase"),
-    c("Renda extra", "receita", "#2c7da0", "plus"),
-    c("Moradia", "despesa", "#8e5ad8", "home"),
-    c("Mercado", "despesa", "#5e9f3e", "cart"),
-    c("Restaurantes e delivery", "despesa", "#d0604a", "utensils"),
-    c("Transporte", "despesa", "#c2702b", "car"),
-    c("Contas da casa", "despesa", "#d89a1c", "zap"),
-    c("Saúde", "despesa", "#b23a48", "heart"),
-    c("Educação", "despesa", "#4a5bd0", "school"),
-    c("Lazer e viagens", "despesa", "#2c7da0", "plane"),
-    c("Assinaturas", "despesa", "#3d7ea6", "monitor"),
-    c("Dívidas e empréstimos", "despesa", "#6b4a3a", "landmark"),
-    c("Outras despesas", "despesa", "#6b7a74", "tag"),
+    c("Salário", "receita", "#1f9d63", "briefcase"),
+    c("Renda extra", "receita", "#4cb3e6", "plus"),
+    c("Moradia", "despesa", "#8b7cf6", "home"),
+    c("Mercado", "despesa", "#a3c93a", "cart"),
+    c("Restaurantes e delivery", "despesa", "#f08a4b", "utensils"),
+    c("Transporte", "despesa", "#f08a4b", "car"),
+    c("Contas da casa", "despesa", "#f2b84b", "zap"),
+    c("Saúde", "despesa", "#e5604d", "heart"),
+    c("Educação", "despesa", "#5b5bd6", "school"),
+    c("Lazer e viagens", "despesa", "#4cb3e6", "plane"),
+    c("Assinaturas", "despesa", "#4cb3e6", "monitor"),
+    c("Dívidas e empréstimos", "despesa", "#c06bd8", "landmark"),
+    c("Outras despesas", "despesa", "#6b7090", "tag"),
   ],
 };
 
@@ -139,8 +154,8 @@ const CATEGORIAS: Record<Uso, CatBase[]> = {
 export async function criarPadroes(uso: Uso = "empresa", saldoPrincipal = 0) {
   const cats = CATEGORIAS[uso].map((x) => ({ ...x, id: novoId() }));
   await db.categorias.bulkAdd(cats);
-  const principal: Conta = { id: novoId(), nome: uso === "empresa" ? "Conta PJ" : "Conta corrente", saldoInicial: saldoPrincipal, cor: "#16202c" };
-  const caixa: Conta = { id: novoId(), nome: uso === "empresa" ? "Caixa" : "Carteira", saldoInicial: 0, cor: "#b8681c" };
+  const principal: Conta = { id: novoId(), nome: uso === "empresa" ? "Conta PJ" : "Conta corrente", saldoInicial: saldoPrincipal, cor: "#5b5bd6", tipo: "conta" };
+  const caixa: Conta = { id: novoId(), nome: uso === "empresa" ? "Caixa" : "Carteira", saldoInicial: 0, cor: "#f08a4b", tipo: "conta" };
   await db.contas.bulkAdd([principal, caixa]);
   return { cats, principal, caixa };
 }
