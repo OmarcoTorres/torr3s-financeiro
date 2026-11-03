@@ -76,6 +76,8 @@ export default function App() {
     iniciarSync(userId).then(() => setSyncPronto(userId)).catch((e) => setErroSync(String(e?.message ?? e)));
   }, [userId, syncPronto]);
 
+  // Só para conferência local das telas (VITE_SEM_LOGIN=1 no build); nunca configurado na Vercel.
+  if (import.meta.env.VITE_SEM_LOGIN === "1") return <Painel email="teste@local" userId="local" />;
   if (!supabaseConfigurado) return <div className="conteudo"><div className="aviso neg">O login ainda não foi configurado neste endereço (falta a chave pública do Supabase).</div></div>;
   if (sessao === undefined) return <Carregando />;
   if (recuperando) return <Login modoInicial="nova-senha" aoDefinirSenha={() => setRecuperando(false)} />;
@@ -100,7 +102,7 @@ function Painel({ email, userId }: { email: string; userId: string }) {
   const [empresa] = useConfig("empresa", "");
   const [logo] = useConfig<string>("logo", "");
   const [cor] = useConfig("cor", "#5b5bd6");
-  const [tema] = useConfig<"sistema" | "claro" | "escuro">("tema", "sistema");
+  const [tema] = useConfig<"sistema" | "claro" | "escuro">("tema", "claro");
   const [tourPendente, setTourPendente] = useConfig("tourPendente", false);
 
   const [aba, setAba] = useState<Aba>(() => {
@@ -174,7 +176,7 @@ function Painel({ email, userId }: { email: string; userId: string }) {
         {aba === "mais" && <Mais dados={dados} email={email} userId={userId} secao={secao} setSecao={setSecao} irAba={(a) => setAba(a)} refazerTour={() => { setAba("inicio"); setTimeout(() => setTour(true), 300); }} />}
       </main>
 
-      <button type="button" className="fab" data-tour="lancar" aria-label="Novo lançamento" onClick={novo}><Plus />Lançar</button>
+      {aba !== "relatorios" && aba !== "mais" && <button type="button" className="fab" data-tour="lancar" aria-label="Nova transação" onClick={novo}><Plus /><span>Lançar</span></button>}
 
       <LancamentoForm rascunho={rascunho} fotoNova={fotoNova} dados={dados} fechar={() => { setRascunho(null); setFotoNova(undefined); }} />
       <LerConta aberta={lerAberto} fechar={() => setLerAberto(false)} dados={dados} aoLer={(r, foto) => { setLerAberto(false); setFotoNova(foto); setRascunho(r); }} />

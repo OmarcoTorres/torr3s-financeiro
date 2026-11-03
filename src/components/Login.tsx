@@ -62,24 +62,36 @@ export function Login({ modoInicial = "entrar", aoDefinirSenha }: { modoInicial?
         <p className="lead">{sub}</p>
         <div className="card" style={{ gap: 12 }}>
           {modo !== "nova-senha" && (
-            <label className="campo"><span>E-mail</span>
-              <div style={{ position: "relative" }}>
-                <Mail size={18} className="muted" style={{ position: "absolute", left: 14, top: 15 }} aria-hidden />
-                <input id="lg-email" type="email" autoComplete="email" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} style={{ paddingLeft: 42, width: "100%" }} placeholder="voce@email.com" />
+            <div className="campo">
+              <label htmlFor="lg-email"><span className="muted" style={{ fontSize: ".8rem", fontWeight: 600 }}>E-mail</span></label>
+              <div className="campo-senha">
+                <Mail size={18} className="muted icone-campo" aria-hidden />
+                <input id="lg-email" type="email" autoComplete="email" inputMode="email" autoCapitalize="none" autoCorrect="off" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="voce@email.com" />
               </div>
-            </label>
+            </div>
           )}
           {modo !== "recuperar" && (
-            <label className="campo"><span>{modo === "nova-senha" ? "Nova senha" : "Senha"}</span>
-              <div style={{ position: "relative" }}>
-                <Lock size={18} className="muted" style={{ position: "absolute", left: 14, top: 15 }} aria-hidden />
-                <input id="lg-senha" type={ver ? "text" : "password"} autoComplete={modo === "entrar" ? "current-password" : "new-password"} value={senha} onChange={(e) => setSenha(e.target.value)} style={{ paddingLeft: 42, paddingRight: 46, width: "100%" }} placeholder={modo === "entrar" ? "Sua senha" : "Mínimo de 8 caracteres"} />
-                <button type="button" className="btn fantasma" onClick={() => setVer(!ver)} aria-label={ver ? "Esconder senha" : "Mostrar senha"} style={{ position: "absolute", right: 2, top: 2, minHeight: 44, padding: "0 12px", color: "var(--muted)" }}>{ver ? <EyeOff size={18} /> : <Eye size={18} />}</button>
+            <div className="campo">
+              <label htmlFor="lg-senha"><span className="muted" style={{ fontSize: ".8rem", fontWeight: 600 }}>{modo === "nova-senha" ? "Nova senha" : "Senha"}</span></label>
+              <div className="campo-senha">
+                <Lock size={18} className="muted icone-campo" aria-hidden />
+                {/* key força um campo novo ao alternar: o Safari ignora a troca de tipo em campo preenchido pelo Chaves. */}
+                <input key={ver ? "t" : "p"} id="lg-senha" type={ver ? "text" : "password"} autoComplete={modo === "entrar" ? "current-password" : "new-password"}
+                  autoCapitalize="none" autoCorrect="off" spellCheck={false} value={senha} onChange={(e) => setSenha(e.target.value)} placeholder={modo === "entrar" ? "Sua senha" : "Mínimo de 8 caracteres"} />
+                <button type="button" className="olho" onPointerDown={(e) => e.preventDefault()} onClick={() => setVer((v) => !v)} aria-label={ver ? "Esconder senha" : "Mostrar senha"} aria-pressed={ver}>
+                  {ver ? <EyeOff size={19} /> : <Eye size={19} />}
+                </button>
               </div>
-            </label>
+            </div>
           )}
           {(modo === "criar" || modo === "nova-senha") && (
-            <label className="campo"><span>Repita a senha</span><input id="lg-senha2" type={ver ? "text" : "password"} autoComplete="new-password" value={senha2} onChange={(e) => setSenha2(e.target.value)} /></label>
+            <div className="campo">
+              <label htmlFor="lg-senha2"><span className="muted" style={{ fontSize: ".8rem", fontWeight: 600 }}>Repita a senha</span></label>
+              <div className="campo-senha">
+                <Lock size={18} className="muted icone-campo" aria-hidden />
+                <input key={ver ? "t2" : "p2"} id="lg-senha2" type={ver ? "text" : "password"} autoComplete="new-password" autoCapitalize="none" autoCorrect="off" spellCheck={false} value={senha2} onChange={(e) => setSenha2(e.target.value)} />
+              </div>
+            </div>
           )}
           {erro && <div className="aviso neg" role="alert">{erro}</div>}
           {ok && <div className="aviso dica" role="status">{ok}</div>}

@@ -1,15 +1,15 @@
 import { useEffect, useState } from "react";
-import { CalendarCheck, ChevronRight, Copy, CreditCard, LogOut, Share2, Database, GraduationCap, Lock, LockOpen, Palette, Tags, UserRound, Users, Wallet } from "lucide-react";
+import { CalendarCheck, CheckCircle2, ChevronRight, Copy, CreditCard, Landmark, LogOut, ShieldCheck, Share2, Database, GraduationCap, Lock, LockOpen, Palette, Tags, UserRound, Users, Wallet } from "lucide-react";
 import { db, ehCartao, novoId, type Categoria, type Conta, type Objetivo, type Perfil } from "../db";
 import { OBJETIVOS } from "../lib/perfil";
 import { supabase } from "../lib/supabase";
 import { entrarComCodigo, sairDaConta, trocarEspaco, useSync } from "../lib/sync";
-import { mesAtual, resumoMes, somarMeses } from "../lib/calc";
+import { mesAtual, resumoMes } from "../lib/calc";
 import { dataCurta, dinheiro, lerValor, mesExtenso, numeroBR } from "../lib/format";
 import { apagarTudo, exportarBackup, importarBackup } from "../lib/backup";
-import { BotaoConfirmar, CORES, Campo, Folha, ICONES, IconeCategoria, Seg, marcarProgresso, useAviso, useConfig, type DadosApp } from "../components/ui";
+import { BotaoConfirmar, CORES, Campo, Folha, ICONES, IconeCategoria, Seg, SeletorMes, marcarProgresso, useAviso, useConfig, type DadosApp } from "../components/ui";
 
-export type Secao = "" | "conta" | "perfil" | "fechamento" | "categorias" | "contas" | "aparencia" | "backup";
+export type Secao = "" | "conta" | "openfinance" | "perfil" | "fechamento" | "categorias" | "contas" | "aparencia" | "backup";
 
 export function Mais({ dados, email, userId, secao, setSecao, refazerTour, irAba }: { dados: DadosApp; email: string; userId: string; secao: Secao; setSecao: (s: Secao) => void; refazerTour: () => void; irAba: (a: "cartoes" | "pessoas") => void }) {
   const fechar = () => setSecao("");
@@ -17,6 +17,7 @@ export function Mais({ dados, email, userId, secao, setSecao, refazerTour, irAba
   const itens: [Secao, typeof Wallet, string, string][] = [
     ["conta", Share2, "Conta e compartilhamento", email],
     ["perfil", UserRound, "Seu perfil e objetivo", "Nome, idade, objetivo e meta do mês"],
+    ["openfinance", Landmark, "Open Finance", "Conectar bancos e importar transações · em breve"],
     ["fechamento", CalendarCheck, "Fechamento mensal", "Saldo do mês, pendências e fechar/reabrir"],
     ["categorias", Tags, "Categorias", "Nomes, cores, ícones e subcategorias"],
     ["contas", Wallet, "Contas e carteiras", "Bancos, caixa e saldo inicial"],
@@ -44,6 +45,7 @@ export function Mais({ dados, email, userId, secao, setSecao, refazerTour, irAba
         <div><button type="button" className="btn" onClick={refazerTour}><GraduationCap />Refazer o tour</button></div>
       </section>
       <Folha titulo="Conta e compartilhamento" aberta={secao === "conta"} fechar={fechar}><ContaECompartilhar email={email} userId={userId} /></Folha>
+      <Folha titulo="Open Finance" aberta={secao === "openfinance"} fechar={fechar}><OpenFinance /></Folha>
       <Folha titulo="Seu perfil e objetivo" aberta={secao === "perfil"} fechar={fechar}><EditarPerfil fechar={fechar} /></Folha>
       <Folha titulo="Fechamento mensal" aberta={secao === "fechamento"} fechar={fechar}><Fechamento dados={dados} /></Folha>
       <Folha titulo="Categorias" aberta={secao === "categorias"} fechar={fechar}><Categorias dados={dados} /></Folha>
@@ -66,11 +68,7 @@ function Fechamento({ dados }: { dados: DadosApp }) {
   async function reabrir() { await db.fechamentos.delete(mes); aviso(`${mesExtenso(mes)} reaberto.`); }
   return (
     <>
-      <div className="busca" style={{ gridTemplateColumns: "auto 1fr auto" }}>
-        <button type="button" className="btn icone" aria-label="Mês anterior" onClick={() => setMes(somarMeses(`${mes}-01`, -1).slice(0, 7))}>‹</button>
-        <input type="month" className="btn" value={mes} onChange={(e) => e.target.value && setMes(e.target.value)} aria-label="Mês" id="fe-mes" />
-        <button type="button" className="btn icone" aria-label="Próximo mês" onClick={() => setMes(somarMeses(`${mes}-01`, 1).slice(0, 7))}>›</button>
-      </div>
+      <SeletorMes valor={mes} mudar={setMes} rotulo="Mês do fechamento" />
       {fechado && <div className="aviso warn"><Lock /><div>Mês fechado em {dataCurta(fechado.fechadoEm.slice(0, 10))}. Os lançamentos deste mês não podem ser editados até reabrir.</div></div>}
       <div className="grade">
         <div className="card kpi"><span className="k">Saldo inicial</span><span className="v num">{dinheiro(r.saldoInicial)}</span></div>
@@ -237,7 +235,7 @@ function Aparencia() {
   const [empresa, setEmpresa] = useConfig("empresa", "");
   const [logo, setLogo] = useConfig<string>("logo", "");
   const [cor, setCor] = useConfig("cor", "#5b5bd6");
-  const [tema, setTema] = useConfig<"sistema" | "claro" | "escuro">("tema", "sistema");
+  const [tema, setTema] = useConfig<"sistema" | "claro" | "escuro">("tema", "claro");
   const [nome, setNome] = useState(empresa);
   useEffect(() => { setNome(empresa); }, [empresa]);
 
@@ -420,3 +418,44 @@ function ContaECompartilhar({ email, userId }: { email: string; userId: string }
     </>
   );
 }
+
+const BANCOS_OF: [string, string, string][] = [["Nubank", "#820ad1", "Nu"], ["Itaú", "#ec7000", "It"], ["Bradesco", "#cc092f", "Br"], ["Banco do Brasil", "#f8d117", "BB"], ["Santander", "#ec0000", "Sa"], ["Inter", "#ff7a00", "In"], ["C6 Bank", "#242424", "C6"], ["Caixa", "#005ca9", "CX"]];
+
+/** Open Finance: tela preparada; a conexão real (via um agregador autorizado pelo Banco Central) entra numa próxima etapa. */
+function OpenFinance() {
+  const [interesse, setInteresse] = useConfig<string[]>("openfinance-interesse", []);
+  const alternar = (b: string) => setInteresse(interesse.includes(b) ? interesse.filter((x) => x !== b) : [...interesse, b]);
+  return (
+    <>
+      <div className="bloco">
+        <span className="chip" style={{ justifySelf: "start" }}>Em breve</span>
+        <b>Conecte suas contas e cartões</b>
+        <span className="muted" style={{ fontSize: ".88rem" }}>Com o Open Finance, o Invest+ vai importar saldos, transações e faturas direto do banco, já categorizados, sem digitar nada.</span>
+      </div>
+      <div className="card" style={{ boxShadow: "none", background: "var(--surface-2)", gap: 10 }}>
+        {[
+          ["Você autoriza no app do seu banco", "A conexão é feita pelo ambiente oficial do Open Finance Brasil, regulado pelo Banco Central."],
+          ["Só leitura", "O Invest+ consulta saldos e movimentações; não faz pagamentos nem transferências."],
+          ["Você controla", "O consentimento tem prazo e pode ser cancelado quando quiser, aqui ou no banco."],
+        ].map(([t, d]) => (
+          <div key={t} style={{ display: "grid", gridTemplateColumns: "22px 1fr", gap: 10 }}>
+            <ShieldCheck size={20} style={{ color: "var(--accent)" }} /><div><b style={{ fontSize: ".92rem" }}>{t}</b><div className="muted" style={{ fontSize: ".84rem" }}>{d}</div></div>
+          </div>
+        ))}
+      </div>
+      <h2 style={{ fontSize: "1rem" }}>Quais bancos você usa?</h2>
+      <p className="muted" style={{ fontSize: ".86rem", marginTop: -8 }}>Marque para priorizarmos esses bancos quando a conexão for liberada.</p>
+      <div className="lista">
+        {BANCOS_OF.map(([b, cor, sigla]) => (
+          <button key={b} type="button" className="of-banco" style={{ background: "none", border: 0, borderBottom: "1px solid var(--line)", textAlign: "left", width: "100%" }} onClick={() => alternar(b)} aria-pressed={interesse.includes(b)}>
+            <span className="lg" style={{ background: cor, color: b === "Banco do Brasil" ? "#1d2142" : "#fff" }}>{sigla}</span>
+            <b style={{ fontWeight: 600 }}>{b}</b>
+            {interesse.includes(b) ? <CheckCircle2 size={22} style={{ color: "var(--accent)" }} /> : <span className="muted" style={{ fontSize: ".8rem" }}>Marcar</span>}
+          </button>
+        ))}
+      </div>
+      <button type="button" className="btn pri grande" disabled>Conectar banco · disponível em breve</button>
+    </>
+  );
+}
+

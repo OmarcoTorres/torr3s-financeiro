@@ -40,6 +40,7 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 html, body { margin: 0; height: 100%; }
 body { background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 15px; line-height: 1.5; -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent; }
 button, input, select, textarea { font: inherit; color: inherit; }
@@ -197,6 +198,14 @@ p { margin: 0; }
 .chk input { width: 20px; height: 20px; accent-color: var(--accent); }
 .busca { display: grid; grid-template-columns: 1fr auto; gap: 10px; }
 .filtros { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+/* Campo com ícone (login) */
+.campo-senha { position: relative; }
+.campo-senha input { width: 100%; border: 1.5px solid transparent; background: var(--surface-2); border-radius: 14px; padding: 12px 48px 12px 44px; font-size: 16px; min-height: 52px; }
+.campo-senha input:focus { border-color: var(--accent); outline: none; background: var(--surface); box-shadow: 0 0 0 4px var(--accent-soft); }
+.campo-senha .icone-campo { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); pointer-events: none; }
+.campo-senha .olho { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 44px; height: 44px; border: 0; background: none; border-radius: 12px; display: grid; place-items: center; color: var(--muted); }
+.campo-senha .olho[aria-pressed="true"] { color: var(--accent); }
+input:-webkit-autofill { -webkit-box-shadow: 0 0 0 40px var(--surface-2) inset !important; -webkit-text-fill-color: var(--ink); }
 .bloco { background: var(--surface-2); border-radius: 18px; padding: 14px; display: grid; gap: 12px; }
 
 /* Folha (modal) */
@@ -305,5 +314,39 @@ tfoot td { font-weight: 700; border-bottom: 0; }
 .tour-caixa p { color: var(--muted); font-size: .9rem; }
 .tour-caixa .rodape-tour { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .tour-caixa .conta { font-size: .76rem; color: var(--accent); font-weight: 700; }
+
+
+/* ---------- Ajustes finos de formulário e celular ---------- */
+.duas { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.filtros > * { min-width: 0; }
+.filtros.dois { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); }
+.campo input, .campo select, .entrada { display: block; max-width: 100%; }
+/* Datas e meses do iOS: sem largura mínima própria e alinhados como os outros campos. */
+.campo input[type="date"], .campo input[type="month"], .entrada[type="date"], .entrada[type="month"] { -webkit-appearance: none; appearance: none; min-width: 0; width: 100%; text-align: left; line-height: 1.3; }
+input[type="date"]::-webkit-date-and-time-value, input[type="month"]::-webkit-date-and-time-value { text-align: left; margin: 0; }
+input[type="date"]::-webkit-calendar-picker-indicator, input[type="month"]::-webkit-calendar-picker-indicator { opacity: .55; }
+/* Selects com a mesma altura e seta dos outros campos. */
+.campo select, select.entrada { -webkit-appearance: none; appearance: none; padding-right: 38px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%236e7391' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 14px center; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; }
+.entrada { border: 1.5px solid transparent; }
+@media (max-width: 959px) {
+  .conteudo { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 150px); }
+  .abas { margin-inline: calc(-1 * max(16px, env(safe-area-inset-left, 0px))); padding-inline: max(16px, env(safe-area-inset-left, 0px)); scroll-padding-inline: 16px; }
+  .topo .acoes { gap: 6px; }
+  .topo .acoes .btn.icone { width: 40px; min-height: 40px; border-radius: 13px; }
+  .topo h1 { font-size: 1.2rem; }
+  .topo > div:nth-child(2) { min-width: 0; }
+  .topo .sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .fab { height: 52px; padding: 0 18px 0 14px; font-size: .9rem; }
+}
+.seletor-mes { min-width: 0; display: grid; grid-template-columns: 40px minmax(0, 1fr) 40px; align-items: center; background: var(--surface-2); border-radius: 14px; min-height: 48px; }
+.seletor-mes button { border: 0; background: none; height: 48px; display: grid; place-items: center; color: var(--accent); border-radius: 14px; }
+.seletor-mes button svg { width: 20px; height: 20px; }
+.seletor-mes span { text-align: center; font-size: .92rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.seletor-mes b { font-weight: 600; text-transform: capitalize; }
+.of-banco { display: grid; grid-template-columns: 40px 1fr auto; gap: 12px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.of-banco:last-child { border-bottom: 0; }
+.of-banco .lg { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; color: #fff; font-weight: 700; font-size: .8rem; }
 
 @media (prefers-reduced-motion: reduce) { .fundo, .folha, .tour-foco, .tour-caixa, .trilho-prog i { animation: none; transition: none; } }

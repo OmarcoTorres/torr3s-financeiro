@@ -7,6 +7,15 @@ import { BotaoConfirmar, Campo, Folha, Seg, useAviso, type DadosApp } from "./ui
 
 export type Rascunho = Partial<Lancamento>;
 
+/** Última conta usada neste aparelho; na primeira vez, a conta principal (não a carteira nem um cartão). */
+function contaPadrao(contas: DadosApp["contas"]) {
+  let ultima = "";
+  try { ultima = localStorage.getItem("investmais-ultima-conta") ?? ""; } catch { /* sem armazenamento */ }
+  if (contas.some((c) => c.id === ultima)) return ultima;
+  const normais = contas.filter((c) => !ehCartao(c));
+  return (normais.find((c) => /^conta/i.test(c.nome)) ?? [...normais].sort((a, b) => b.saldoInicial - a.saldoInicial)[0] ?? contas[0])?.id ?? "";
+}
+
 type Repetir = "nao" | "parcelado" | "mensal";
 
 export function LancamentoForm({ rascunho, fotoNova, fechar, dados }: { rascunho: Rascunho | null; fotoNova?: Blob; fechar: () => void; dados: DadosApp }) {
@@ -43,7 +52,7 @@ export function LancamentoForm({ rascunho, fotoNova, fechar, dados }: { rascunho
     setVencimento(r.vencimento ?? "");
     setStatus(r.status ?? (r.vencimento && r.vencimento > hoje() ? "pendente" : "pago"));
     setCategoriaId(r.categoriaId ?? "");
-    setContaId(r.contaId ?? dados.contas.find((c) => !ehCartao(c))?.id ?? dados.contas[0]?.id ?? "");
+    setContaId(r.contaId ?? contaPadrao(dados.contas));
     setContaDestinoId(r.contaDestinoId ?? "");
     setPessoaId(r.pessoaId ?? "");
     setObservacao(r.observacao ?? "");
@@ -78,6 +87,7 @@ export function LancamentoForm({ rascunho, fotoNova, fechar, dados }: { rascunho
 
   async function salvar() {
     setErro("");
+    try { localStorage.setItem("investmais-ultima-conta", contaId); } catch { /* sem armazenamento */ }
     if (!descricao.trim()) return setErro("Escreva uma descrição.");
     if (valor <= 0) return setErro("Informe um valor maior que zero.");
     if (!contaId) return setErro("Escolha a conta.");

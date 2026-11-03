@@ -6,7 +6,7 @@ import { fimDoMes, mesAtual, saldoPessoa, totais, ultimosMeses } from "../lib/ca
 import { dataBR, dinheiro, mesCurto, mesExtenso } from "../lib/format";
 import { montarTabela, NOME_COLUNA, TODAS_COLUNAS, type Tabela } from "../lib/relatorio";
 import { exportarCSV, exportarPDF } from "../lib/exportar";
-import { BotaoConfirmar, Campo, useAviso, useConfig, type DadosApp } from "../components/ui";
+import { BotaoConfirmar, Campo, SeletorMes, useAviso, useConfig, type DadosApp } from "../components/ui";
 
 type Aba = "fluxo" | "categorias" | "abertos" | "pessoas" | "comparativo" | "personalizado";
 const ABAS: [Aba, string][] = [
@@ -109,8 +109,8 @@ export function Relatorios({ dados }: { dados: DadosApp }) {
       </div>
 
       {aba !== "personalizado" && aba !== "pessoas" && (
-        <div className="filtros">
-          <Campo rotulo={aba === "fluxo" || aba === "comparativo" ? "Até o mês" : "Mês"}><input id="rel-mes" type="month" value={mes} onChange={(e) => e.target.value && setMes(e.target.value)} /></Campo>
+        <div className={`filtros ${aba === "fluxo" ? "dois" : ""}`}>
+          <div className="campo"><span>{aba === "fluxo" || aba === "comparativo" ? "Até o mês" : "Mês"}</span><SeletorMes valor={mes} mudar={setMes} /></div>
           {aba === "fluxo" && <Campo rotulo="Meses"><select id="rel-n" value={meses} onChange={(e) => setMeses(Number(e.target.value))}>{[3, 6, 12].map((n) => <option key={n} value={n}>{n} meses</option>)}</select></Campo>}
         </div>
       )}
@@ -139,7 +139,7 @@ export function Relatorios({ dados }: { dados: DadosApp }) {
             </div>
           )}
           <div className="busca">
-            <input className="btn" style={{ fontWeight: 500, justifyContent: "flex-start" }} placeholder="Nome para salvar, ex.: Combustível do trimestre" value={nomeSalvar} onChange={(e) => setNomeSalvar(e.target.value)} aria-label="Nome do relatório" id="p-nome" />
+            <input className="entrada" placeholder="Nome para salvar o relatório" value={nomeSalvar} onChange={(e) => setNomeSalvar(e.target.value)} aria-label="Nome do relatório" id="p-nome" />
             <button type="button" className="btn pri" onClick={salvar}><Save />Salvar</button>
           </div>
           <div className="linha-botoes">
@@ -160,7 +160,8 @@ export function Relatorios({ dados }: { dados: DadosApp }) {
           </div>
         </div>
 
-        {colunasGrafico && (
+        {colunasGrafico && colunasGrafico.every((c) => !c.ent && !c.sai) && <p className="muted">Sem movimentações pagas no período.</p>}
+        {colunasGrafico && colunasGrafico.some((c) => c.ent || c.sai) && (
           <>
             <div className="colunas" role="img" aria-label="Entradas e saídas por mês">
               {colunasGrafico.map((c) => (

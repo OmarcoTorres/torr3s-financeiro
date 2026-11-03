@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import { useLiveQuery } from "dexie-react-hooks";
 import {
   Briefcase, Plus, Home, Users, Landmark, Wifi, Zap, Fuel, Utensils, Monitor, Tag, Car, ShoppingCart, Heart,
-  GraduationCap, Plane, Wrench, Megaphone, PiggyBank, Receipt, ArrowLeftRight, X, type LucideIcon,
+  GraduationCap, Plane, Wrench, Megaphone, PiggyBank, Receipt, ArrowLeftRight, X, ChevronLeft, ChevronRight, type LucideIcon,
 } from "lucide-react";
 import { db } from "../db";
 
@@ -103,3 +103,22 @@ export async function marcarProgresso(chave: "contas" | "relatorio" | "backup") 
   const atual = ((await db.config.get("progresso"))?.valor ?? {}) as Record<string, boolean>;
   if (!atual[chave]) await db.config.put({ chave: "progresso", valor: { ...atual, [chave]: true } });
 }
+
+const NOMES_MES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+/** Seletor de mês com setas: mais fácil no celular do que o campo nativo de mês. */
+export function SeletorMes({ valor, mudar, rotulo = "Mês" }: { valor: string; mudar: (m: string) => void; rotulo?: string }) {
+  const passo = (n: number) => {
+    const [a, m] = valor.split("-").map(Number);
+    const d = new Date(a, m - 1 + n, 1);
+    mudar(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+  };
+  const [a, m] = valor.split("-").map(Number);
+  return (
+    <div className="seletor-mes" role="group" aria-label={rotulo}>
+      <button type="button" onClick={() => passo(-1)} aria-label="Mês anterior"><ChevronLeft /></button>
+      <span><b>{NOMES_MES[m - 1]}</b> {a}</span>
+      <button type="button" onClick={() => passo(1)} aria-label="Próximo mês"><ChevronRight /></button>
+    </div>
+  );
+}
+

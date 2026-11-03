@@ -21,7 +21,7 @@ export function Pessoas({ dados, abrir }: { dados: DadosApp; abrir: (l: Lancamen
   return (
     <>
       <div className="busca">
-        <input className="btn" style={{ fontWeight: 500, justifyContent: "flex-start", minHeight: 46 }} type="search" placeholder="Buscar pessoa" value={busca} onChange={(e) => setBusca(e.target.value)} aria-label="Buscar pessoa" id="busca-pessoa" />
+        <input className="entrada" type="search" placeholder="Buscar pessoa" value={busca} onChange={(e) => setBusca(e.target.value)} aria-label="Buscar pessoa" id="busca-pessoa" />
         <button type="button" className="btn pri" onClick={() => setEditar({ tipo: "cliente" })}><UserPlus />Nova</button>
       </div>
       <section className="card" style={{ gap: 0 }}>
