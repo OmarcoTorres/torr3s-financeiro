@@ -13,7 +13,7 @@ import { desligarPushAoSair } from "./push";
 
 type Campo = string;
 const TABELAS: Record<string, { campos: Campo[]; chaveLocal?: string }> = {
-  contas: { campos: ["id", "nome", "saldoInicial", "cor", "tipo", "limite", "vencimentoDia", "final"] },
+  contas: { campos: ["id", "nome", "saldoInicial", "cor", "tipo", "limite", "vencimentoDia", "final", "compartilhada"] },
   categorias: { campos: ["id", "nome", "tipo", "cor", "icone", "paiId"] },
   pessoas: { campos: ["id", "nome", "tipo", "telefone", "observacao", "userId"] },
   lancamentos: { campos: ["id", "tipo", "descricao", "valor", "data", "vencimento", "categoriaId", "contaId", "contaDestinoId", "pessoaId", "status", "observacao", "fotoId", "grupo", "parcela", "totalParcelas", "recorrente", "divisao", "compartilhado", "criadoEm"] },
@@ -198,7 +198,7 @@ async function receberCompartilhados(userId: string) {
     const entrar = linhas.filter((l) => l.visivel).map((l) => ({
       id: String(l.id), autorId: String(l.autor_id), autorNome: String(l.autor_nome), tipo: l.tipo as Compartilhado["tipo"],
       descricao: String(l.descricao ?? ""), valor: Number(l.valor ?? 0), data: String(l.data), vencimento: (l.vencimento as string) || undefined,
-      status: l.status as Compartilhado["status"], categoriaNome: (l.categoria_nome as string) || undefined, categoriaCor: (l.categoria_cor as string) || undefined,
+      status: l.status as Compartilhado["status"], categoriaNome: (l.categoria_nome as string) || undefined, categoriaCor: (l.categoria_cor as string) || undefined, contaNome: (l.conta_nome as string) || undefined,
       observacao: (l.observacao as string) || undefined, atualizadoEm: String(l.atualizado_em),
     }));
     if (sair.length) await db.compartilhados.bulkDelete(sair);

@@ -7,6 +7,7 @@ import { ItemLancamento } from "../components/ItemLancamento";
 import { BotaoConfirmar, CORES, Campo, Folha, useAviso, type DadosApp } from "../components/ui";
 import type { Rascunho } from "../components/LancamentoForm";
 import { InputDigitos, InputValor } from "../components/campos";
+import { CompartilharConta } from "../components/Grupo";
 
 /** Fatura em aberto = quanto o cartão está "devendo" (saldo negativo). */
 export function situacaoCartao(c: Conta, lanc: Lancamento[]) {
@@ -63,7 +64,7 @@ export function Cartoes({ dados, abrir, pagar }: { dados: DadosApp; abrir: (l: L
                   <MiniCartao c={c} />
                   <div>
                     <span className="nm">{c.nome}</span>
-                    <span className="det">{c.vencimentoDia ? `Vence dia ${c.vencimentoDia}` : "Sem vencimento"}{c.limite ? ` · Disponível ${dinheiro(s.disponivel)}` : ""}</span>
+                    <span className="det">{c.vencimentoDia ? `Vence dia ${c.vencimentoDia}` : "Sem vencimento"}{c.limite ? ` · Disponível ${dinheiro(s.disponivel)}` : ""}{c.compartilhada ? " · compartilhado" : ""}</span>
                     {c.limite ? <div className="trilho-prog"><i style={{ width: `${s.pct}%`, background: c.cor }} /></div> : null}
                   </div>
                   <b className="num fat">{dinheiro(s.usado)}</b>
@@ -96,6 +97,7 @@ function EditarCartao({ edit, setEdit, dados, abrir, pagar }: {
     await db.contas.put({
       id: edit.id ?? novoId(), nome: edit.nome.trim(), tipo: "cartao", cor: edit.cor ?? CORES[0], saldoInicial: existente?.saldoInicial ?? 0,
       limite: lerValor(edit.limiteTxt ?? "") ?? undefined, vencimentoDia: dia >= 1 && dia <= 31 ? dia : undefined, final: (edit.final ?? "").replace(/\D/g, "").slice(-4) || undefined,
+      compartilhada: edit.compartilhada || undefined,
     });
     aviso("Cartão salvo."); setEdit(null);
   }
@@ -119,6 +121,7 @@ function EditarCartao({ edit, setEdit, dados, abrir, pagar }: {
         <Campo rotulo="Dia do vencimento"><InputDigitos id="ct-dia" max={2} value={edit.diaTxt ?? ""} onChange={(v) => setEdit({ ...edit, diaTxt: v && Number(v) > 31 ? "31" : v })} placeholder="10" /></Campo>
       </div>
       <Campo rotulo="Limite"><InputValor id="ct-limite" value={edit.limiteTxt ?? ""} onChange={(v) => setEdit({ ...edit, limiteTxt: v })} /></Campo>
+      <CompartilharConta cartao valor={!!edit.compartilhada} mudar={(v) => setEdit({ ...edit, compartilhada: v })} pessoas={dados.pessoas} />
       <div className="campo"><span>Cor</span><div className="cores">{CORES.map((c) => <button key={c} type="button" aria-label={`Cor ${c}`} aria-pressed={(edit.cor ?? CORES[0]) === c} style={{ background: fundoCartao(c) }} onClick={() => setEdit({ ...edit, cor: c })} />)}</div></div>
       {compras.length > 0 && (
         <>

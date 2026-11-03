@@ -126,3 +126,20 @@ export function SeuGrupo() {
     </>
   );
 }
+
+/** Interruptor "Compartilhar a conta inteira com meu grupo" (contas e cartões). */
+export function CompartilharConta({ valor, mudar, pessoas, cartao }: { valor: boolean; mudar: (v: boolean) => void; pessoas: { nome: string; userId?: string }[]; cartao?: boolean }) {
+  const nomes = pessoas.filter((p) => p.userId).map((p) => p.nome.split(" ")[0]).join(", ");
+  return (
+    <label className="linha-toggle" style={{ background: "var(--surface-2)", borderRadius: 16, padding: "12px 14px", borderBottom: 0 }}>
+      <span>
+        <b>Compartilhar {cartao ? "o cartão" : "a conta"} inteiro{cartao ? "" : "a"} com meu grupo</b>
+        <small>{nomes
+          ? `${nomes} ${nomes.includes(",") ? "veem" : "vê"} todos os lançamentos ${cartao ? "deste cartão" : "desta conta"}, sem precisar marcar um por um. Ninguém edita.`
+          : "Ninguém no seu grupo ainda: convide em Ajustes › Conta e grupo. A opção já fica valendo quando a pessoa entrar."}</small>
+      </span>
+      <input type="checkbox" className="interruptor" checked={valor} onChange={(e) => mudar(e.target.checked)} />
+    </label>
+  );
+}
+

@@ -4,7 +4,7 @@ import { db, ehCartao, novoId, type Categoria, type Conta, type Objetivo, type P
 import { OBJETIVOS } from "../lib/perfil";
 import { supabase } from "../lib/supabase";
 import { sairDaConta, trocarEspaco, useSync } from "../lib/sync";
-import { SeuGrupo } from "../components/Grupo";
+import { CompartilharConta, SeuGrupo } from "../components/Grupo";
 import { mesAtual, resumoMes } from "../lib/calc";
 import { dataCurta, dinheiro, lerValor, mesExtenso, numeroBR } from "../lib/format";
 import { apagarTudo, exportarBackup, importarBackup } from "../lib/backup";
@@ -194,7 +194,7 @@ function Contas({ dados }: { dados: DadosApp }) {
   const [edit, setEdit] = useState<(Partial<Conta> & { saldoTxt?: string }) | null>(null);
   async function salvar() {
     if (!edit?.nome?.trim()) { aviso("Escreva o nome."); return; }
-    await db.contas.put({ id: edit.id ?? novoId(), nome: edit.nome.trim(), saldoInicial: lerValor(edit.saldoTxt ?? "0") ?? 0, cor: edit.cor ?? CORES[0], tipo: "conta" });
+    await db.contas.put({ id: edit.id ?? novoId(), nome: edit.nome.trim(), saldoInicial: lerValor(edit.saldoTxt ?? "0") ?? 0, cor: edit.cor ?? CORES[0], tipo: "conta", compartilhada: edit.compartilhada || undefined });
     aviso("Conta salva."); setEdit(null);
   }
   async function excluir() {
@@ -208,6 +208,7 @@ function Contas({ dados }: { dados: DadosApp }) {
       <>
         <Campo rotulo="Nome"><input id="co-nome" value={edit.nome ?? ""} onChange={(e) => setEdit({ ...edit, nome: e.target.value })} placeholder="Ex.: Banco do Brasil" /></Campo>
         <Campo rotulo="Saldo inicial"><InputValor id="co-saldo" value={edit.saldoTxt ?? ""} onChange={(v) => setEdit({ ...edit, saldoTxt: v })} /></Campo>
+        <CompartilharConta valor={!!edit.compartilhada} mudar={(v) => setEdit({ ...edit, compartilhada: v })} pessoas={dados.pessoas} />
         <div className="campo"><span>Cor</span><div className="cores">{CORES.map((c) => <button key={c} type="button" aria-label={`Cor ${c}`} aria-pressed={(edit.cor ?? CORES[0]) === c} style={{ background: c }} onClick={() => setEdit({ ...edit, cor: c })} />)}</div></div>
         <div className="linha-botoes" style={{ justifyContent: "space-between" }}>
           <div className="linha-botoes">
@@ -227,7 +228,7 @@ function Contas({ dados }: { dados: DadosApp }) {
         {dados.contas.filter((c) => !ehCartao(c)).map((c) => (
           <button key={c.id} type="button" className="item" style={{ gridTemplateColumns: "38px 1fr auto" }} onClick={() => setEdit({ ...c, saldoTxt: numeroBR(c.saldoInicial) })}>
             <span className="ic" style={{ background: `color-mix(in srgb, ${c.cor} 15%, var(--surface))`, color: c.cor }}><Wallet size={18} /></span>
-            <div className="tt">{c.nome}</div>
+            <div><div className="tt">{c.nome}</div>{c.compartilhada && <div className="meta"><Users size={12} /> compartilhada com o grupo</div>}</div>
             <span className="muted num" style={{ fontSize: ".82rem" }}>inicial {dinheiro(c.saldoInicial)}</span>
           </button>
         ))}

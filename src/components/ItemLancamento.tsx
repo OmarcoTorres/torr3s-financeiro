@@ -26,7 +26,7 @@ export function ItemLancamento({ l, dados, abrir, mostrarData }: { l: Lancamento
           {conta && ehCartao(conta) && l.tipo !== "transferencia" && <span>· {conta.nome}{conta.final ? ` •••• ${conta.final}` : ""}</span>}
           {pessoa && <span>· {pessoa.nome}</span>}
           {l.vencimento && l.status === "pendente" && <span>· vence {dataCurta(l.vencimento)}</span>}
-          {l.compartilhado && <Users size={12} aria-label="Compartilhado com o grupo" />}
+          {(l.compartilhado || conta?.compartilhada || destino?.compartilhada) && <Users size={12} aria-label="Compartilhado com o grupo" />}
           {l.recorrente && <Repeat size={12} aria-label="Mensal" />}
           {l.fotoId && <Paperclip size={12} aria-label="Com foto" />}
           {mesFechado(dados.fech, l.data) && <Lock size={12} aria-label="Mês fechado" />}
@@ -55,6 +55,7 @@ export function ItemCompartilhado({ c, mostrarData }: { c: Compartilhado; mostra
         <div className="meta">
           {mostrarData && <span>{dataCurta(c.data)}</span>}
           <span>{c.categoriaNome ?? "Sem categoria"}</span>
+          {c.contaNome && <span>· {c.contaNome}</span>}
           <span className="pill pendente" style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>de {c.autorNome.split(" ")[0]}</span>
         </div>
       </div>

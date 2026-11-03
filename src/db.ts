@@ -37,7 +37,7 @@ export interface Pessoa { id: string; nome: string; tipo: TipoPessoa; telefone?:
 /** Lançamento que alguém do grupo compartilhou comigo (só leitura, vem do servidor). */
 export interface Compartilhado {
   id: string; autorId: string; autorNome: string; tipo: Tipo; descricao: string; valor: number; data: string; vencimento?: string;
-  status: Status; categoriaNome?: string; categoriaCor?: string; observacao?: string; atualizadoEm: string;
+  status: Status; categoriaNome?: string; categoriaCor?: string; contaNome?: string; observacao?: string; atualizadoEm: string;
 }
 
 export interface Categoria { id: string; nome: string; tipo: "receita" | "despesa"; cor: string; icone: string; paiId?: string }
@@ -48,6 +48,8 @@ export interface Conta {
   limite?: number;        // cartão: limite em centavos
   vencimentoDia?: number; // cartão: dia do vencimento da fatura
   final?: string;         // cartão: últimos 4 dígitos
+  /** O grupo vê todos os lançamentos desta conta/cartão (só leitura). */
+  compartilhada?: boolean;
 }
 export const ehCartao = (c?: Conta) => c?.tipo === "cartao";
 

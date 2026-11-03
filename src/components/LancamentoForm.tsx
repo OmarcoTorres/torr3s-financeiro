@@ -77,6 +77,7 @@ export function LancamentoForm({ rascunho, fotoNova, fechar, dados }: { rascunho
   const doGrupo = dados.pessoas.filter((p) => p.userId);
   const temGrupo = doGrupo.length > 0;
   const nomesGrupo = doGrupo.map((p) => p.nome.split(" ")[0]).join(", ");
+  const contaCompartilhada = dados.contas.find((c) => c.id === contaId && c.compartilhada);
   const bloqueado = editando && rascunho?.data ? mesFechado(dados.fech, rascunho.data) : false;
   const catsDoTipo = useMemo(() => {
     const doTipo = dados.cats.filter((c) => tipo !== "transferencia" && c.tipo === tipo);
@@ -268,8 +269,10 @@ export function LancamentoForm({ rascunho, fotoNova, fechar, dados }: { rascunho
 
         {tipo !== "transferencia" && temGrupo && (
           <label className="linha-toggle" style={{ background: "var(--surface-2)", borderRadius: 16, padding: "12px 14px", borderBottom: 0 }}>
-            <span><b>Compartilhar com meu grupo</b><small>{nomesGrupo ? `${nomesGrupo} ${nomesGrupo.includes(",") ? "veem" : "vê"} esta ${tipo === "receita" ? "receita" : "despesa"}, sem poder editar.` : "As pessoas do seu grupo veem este lançamento, sem poder editar."}</small></span>
-            <input type="checkbox" className="interruptor" checked={compartilhado} onChange={(e) => setCompartilhado(e.target.checked)} />
+            <span><b>Compartilhar com meu grupo</b><small>{contaCompartilhada
+              ? `A conta “${contaCompartilhada.nome}” é compartilhada: ${nomesGrupo || "o grupo"} já ${nomesGrupo.includes(",") ? "veem" : "vê"} tudo dela.`
+              : nomesGrupo ? `${nomesGrupo} ${nomesGrupo.includes(",") ? "veem" : "vê"} esta ${tipo === "receita" ? "receita" : "despesa"}, sem poder editar.` : "As pessoas do seu grupo veem este lançamento, sem poder editar."}</small></span>
+            <input type="checkbox" className="interruptor" checked={compartilhado || !!contaCompartilhada} disabled={!!contaCompartilhada} onChange={(e) => setCompartilhado(e.target.checked)} />
           </label>
         )}
 
