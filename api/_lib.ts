@@ -25,7 +25,7 @@ export function barrar(req: Request): Response | null {
   acessos.set(ip, lista);
 
   if (!process.env.ANTHROPIC_API_KEY) {
-    return resposta(503, { erro: "A IA ainda não foi ativada: falta configurar ANTHROPIC_API_KEY na Vercel." });
+    return resposta(503, { erro: "A leitura automática ainda não foi ativada neste endereço (falta configurar ANTHROPIC_API_KEY na Vercel)." });
   }
   return null;
 }

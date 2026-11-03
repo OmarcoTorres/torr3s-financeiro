@@ -13,13 +13,13 @@ export async function exportarBackup() {
   for (const t of TABELAS) dados[t] = await db.table(t).toArray();
   const fotos = await db.fotos.toArray();
   dados.fotos = await Promise.all(fotos.map(async (f) => ({ id: f.id, dataURL: await blobParaDataURL(f.blob) })));
-  baixar(`financeiro-backup-${hoje()}.json`, new Blob([JSON.stringify(dados)], { type: "application/json" }));
+  baixar(`tostao-backup-${hoje()}.json`, new Blob([JSON.stringify(dados)], { type: "application/json" }));
 }
 
 /** Substitui todos os dados do aparelho pelo conteúdo do backup. */
 export async function importarBackup(arquivo: File) {
   const dados = JSON.parse(await arquivo.text());
-  if (dados?.app !== "financeiro" || !Array.isArray(dados.lancamentos)) throw new Error("Este arquivo não é um backup do Financeiro.");
+  if (dados?.app !== "financeiro" || !Array.isArray(dados.lancamentos)) throw new Error("Este arquivo não é um backup do Tostão.");
   const fotos = await Promise.all((dados.fotos ?? []).map(async (f: { id: string; dataURL: string }) => ({ id: f.id, blob: await (await fetch(f.dataURL)).blob() })));
   await db.transaction("rw", [...TABELAS.map((t) => db.table(t)), db.fotos], async () => {
     for (const t of TABELAS) { await db.table(t).clear(); await db.table(t).bulkAdd(dados[t] ?? []); }

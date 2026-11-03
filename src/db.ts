@@ -87,72 +87,133 @@ class Banco extends Dexie {
 export const db = new Banco();
 export const novoId = () => crypto.randomUUID();
 
-const CATEGORIAS_PADRAO: Omit<Categoria, "id">[] = [
-  { nome: "Vendas e serviços", tipo: "receita", cor: "#1f8a5b", icone: "briefcase" },
-  { nome: "Outras receitas", tipo: "receita", cor: "#2c7da0", icone: "plus" },
-  { nome: "Aluguel", tipo: "despesa", cor: "#8e5ad8", icone: "home" },
-  { nome: "Folha e pró-labore", tipo: "despesa", cor: "#d0604a", icone: "users" },
-  { nome: "Impostos", tipo: "despesa", cor: "#b23a48", icone: "landmark" },
-  { nome: "Internet e telefone", tipo: "despesa", cor: "#3d7ea6", icone: "wifi" },
-  { nome: "Energia e água", tipo: "despesa", cor: "#d89a1c", icone: "zap" },
-  { nome: "Combustível", tipo: "despesa", cor: "#c2702b", icone: "fuel" },
-  { nome: "Alimentação", tipo: "despesa", cor: "#5e9f3e", icone: "utensils" },
-  { nome: "Software e assinaturas", tipo: "despesa", cor: "#4a5bd0", icone: "monitor" },
-  { nome: "Outras despesas", tipo: "despesa", cor: "#6b7a74", icone: "tag" },
-];
+export type Uso = "pessoal" | "empresa";
+export type Objetivo = "organizar" | "economizar" | "dividas" | "gastos" | "crescer";
+export interface Perfil {
+  nome: string;
+  idade?: number;
+  uso: Uso;
+  empresa?: string;
+  objetivo: Objetivo;
+  /** Centavos. Meta de economia (economizar) ou limite de gastos (dividas) por mês. */
+  meta?: number;
+  criadoEm: string;
+}
 
-/** Categorias padrão e duas contas (principal e caixa). */
-export async function criarPadroes(saldoPrincipal = 0, saldoCaixa = 0) {
-  const cats = CATEGORIAS_PADRAO.map((c) => ({ ...c, id: novoId() }));
+type CatBase = Omit<Categoria, "id">;
+const c = (nome: string, tipo: "receita" | "despesa", cor: string, icone: string): CatBase => ({ nome, tipo, cor, icone });
+
+const CATEGORIAS: Record<Uso, CatBase[]> = {
+  empresa: [
+    c("Vendas e serviços", "receita", "#1f8a5b", "briefcase"),
+    c("Outras receitas", "receita", "#2c7da0", "plus"),
+    c("Aluguel", "despesa", "#8e5ad8", "home"),
+    c("Folha e pró-labore", "despesa", "#d0604a", "users"),
+    c("Impostos", "despesa", "#b23a48", "landmark"),
+    c("Internet e telefone", "despesa", "#3d7ea6", "wifi"),
+    c("Energia e água", "despesa", "#d89a1c", "zap"),
+    c("Combustível", "despesa", "#c2702b", "fuel"),
+    c("Fornecedores", "despesa", "#4a5bd0", "cart"),
+    c("Marketing", "despesa", "#8e5ad8", "megaphone"),
+    c("Software e assinaturas", "despesa", "#2c7da0", "monitor"),
+    c("Outras despesas", "despesa", "#6b7a74", "tag"),
+  ],
+  pessoal: [
+    c("Salário", "receita", "#1f8a5b", "briefcase"),
+    c("Renda extra", "receita", "#2c7da0", "plus"),
+    c("Moradia", "despesa", "#8e5ad8", "home"),
+    c("Mercado", "despesa", "#5e9f3e", "cart"),
+    c("Restaurantes e delivery", "despesa", "#d0604a", "utensils"),
+    c("Transporte", "despesa", "#c2702b", "car"),
+    c("Contas da casa", "despesa", "#d89a1c", "zap"),
+    c("Saúde", "despesa", "#b23a48", "heart"),
+    c("Educação", "despesa", "#4a5bd0", "school"),
+    c("Lazer e viagens", "despesa", "#2c7da0", "plane"),
+    c("Assinaturas", "despesa", "#3d7ea6", "monitor"),
+    c("Dívidas e empréstimos", "despesa", "#6b4a3a", "landmark"),
+    c("Outras despesas", "despesa", "#6b7a74", "tag"),
+  ],
+};
+
+/** Categorias e contas iniciais conforme o uso (pessoal ou empresa). */
+export async function criarPadroes(uso: Uso = "empresa", saldoPrincipal = 0) {
+  const cats = CATEGORIAS[uso].map((x) => ({ ...x, id: novoId() }));
   await db.categorias.bulkAdd(cats);
-  const principal: Conta = { id: novoId(), nome: "Conta principal", saldoInicial: saldoPrincipal, cor: "#0f3d2e" };
-  const caixa: Conta = { id: novoId(), nome: "Caixa", saldoInicial: saldoCaixa, cor: "#c2702b" };
+  const principal: Conta = { id: novoId(), nome: uso === "empresa" ? "Conta PJ" : "Conta corrente", saldoInicial: saldoPrincipal, cor: "#16202c" };
+  const caixa: Conta = { id: novoId(), nome: uso === "empresa" ? "Caixa" : "Carteira", saldoInicial: 0, cor: "#b8681c" };
   await db.contas.bulkAdd([principal, caixa]);
   return { cats, principal, caixa };
 }
 
-/** Primeira abertura: categorias e contas padrão, mais dados de exemplo marcados. */
-let preparando: Promise<void> | null = null;
+/** Compatibilidade: versões antigas preenchiam o banco antes do cadastro do perfil. */
 export function prepararBanco() {
-  // Uma vez só por sessão (o React em modo estrito chama os efeitos duas vezes).
-  preparando ??= prepararUmaVez();
-  return preparando;
+  return Promise.resolve();
 }
 
-async function prepararUmaVez() {
-  await db.transaction("rw", [db.categorias, db.contas, db.pessoas, db.lancamentos, db.config], async () => {
-    if (await db.config.get("preparado")) return;
-    const { cats, principal, caixa } = await criarPadroes(1500000, 50000);
+/**
+ * Fim das boas-vindas. Se ainda não há lançamentos reais, monta o app do zero para o perfil
+ * (categorias, contas, saldo inicial e, se pedido, exemplos). Se já há dados reais, só guarda o perfil.
+ */
+export async function aplicarPerfil(perfil: Perfil, opcoes: { saldoInicial: number; exemplos: boolean; tour: boolean }) {
+  await db.transaction("rw", [db.categorias, db.contas, db.pessoas, db.lancamentos, db.config, db.fotos], async () => {
+    const reais = await db.lancamentos.filter((l) => !l.exemplo).count();
+    if (reais === 0) {
+      await db.lancamentos.clear();
+      await db.pessoas.filter((p) => !!p.exemplo).delete();
+      await db.categorias.clear();
+      await db.contas.clear();
+      const base = await criarPadroes(perfil.uso, opcoes.saldoInicial);
+      if (opcoes.exemplos) await criarExemplos(perfil.uso, base);
+    }
+    await db.config.bulkPut([
+      { chave: "perfil", valor: perfil },
+      { chave: "empresa", valor: perfil.uso === "empresa" && perfil.empresa ? perfil.empresa : perfil.nome },
+      { chave: "preparado", valor: true },
+      { chave: "tourPendente", valor: opcoes.tour },
+    ]);
+  });
+}
 
-    const p = (nome: string, tipo: TipoPessoa): Pessoa => ({ id: novoId(), nome, tipo, exemplo: true });
-    const joao = p("João Almeida (exemplo)", "cliente");
-    const posto = p("Posto Central (exemplo)", "cliente");
-    const net = p("NetFibra (exemplo)", "fornecedor");
-    await db.pessoas.bulkAdd([joao, posto, net]);
-
-    const cat = (n: string) => cats.find((c) => c.nome === n)!.id;
-    const hoje = new Date();
-    const d = (diasDesloc: number) => isoLocal(new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() + diasDesloc));
-    const l = (x: Partial<Lancamento> & Pick<Lancamento, "tipo" | "descricao" | "valor" | "data" | "status">): Lancamento => ({
-      id: novoId(), contaId: principal.id, criadoEm: new Date().toISOString(), exemplo: true, ...x,
-    });
+async function criarExemplos(uso: Uso, base: Awaited<ReturnType<typeof criarPadroes>>) {
+  const { cats, principal, caixa } = base;
+  const cat = (n: string) => cats.find((x) => x.nome === n)?.id;
+  const hoje = new Date();
+  const d = (dias: number) => isoLocal(new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() + dias));
+  const dia1 = isoLocal(new Date(hoje.getFullYear(), hoje.getMonth(), 1));
+  const p = (nome: string, tipo: TipoPessoa): Pessoa => ({ id: novoId(), nome: `${nome} (exemplo)`, tipo, exemplo: true });
+  const l = (x: Partial<Lancamento> & Pick<Lancamento, "tipo" | "descricao" | "valor" | "data" | "status">): Lancamento => ({
+    id: novoId(), contaId: principal.id, criadoEm: new Date().toISOString(), exemplo: true, ...x,
+  });
+  if (uso === "empresa") {
+    const cliente = p("Posto Central", "cliente"), joao = p("João Almeida", "cliente"), net = p("NetFibra", "fornecedor");
+    await db.pessoas.bulkAdd([cliente, joao, net]);
     await db.lancamentos.bulkAdd([
-      l({ tipo: "receita", descricao: "Consultoria mensal", valor: 850000, data: d(-30), status: "pago", categoriaId: cat("Vendas e serviços"), pessoaId: posto.id }),
+      l({ tipo: "receita", descricao: "Consultoria mensal", valor: 850000, data: d(-30), status: "pago", categoriaId: cat("Vendas e serviços"), pessoaId: cliente.id }),
       l({ tipo: "despesa", descricao: "Aluguel do escritório", valor: 280000, data: d(-28), status: "pago", categoriaId: cat("Aluguel") }),
       l({ tipo: "despesa", descricao: "Internet fibra", valor: 15990, data: d(-25), status: "pago", categoriaId: cat("Internet e telefone"), pessoaId: net.id }),
-      l({ tipo: "despesa", descricao: "Combustível", valor: 32000, data: d(-20), status: "pago", categoriaId: cat("Combustível"), contaId: caixa.id }),
-      l({ tipo: "receita", descricao: "Projeto de integração", valor: 1200000, data: d(-3), status: "pago", categoriaId: cat("Vendas e serviços"), pessoaId: posto.id }),
-      l({ tipo: "despesa", descricao: "Pró-labore", valor: 600000, data: d(-2), status: "pago", categoriaId: cat("Folha e pró-labore") }),
+      l({ tipo: "receita", descricao: "Projeto de integração", valor: 1200000, data: dia1, status: "pago", categoriaId: cat("Vendas e serviços"), pessoaId: cliente.id }),
+      l({ tipo: "despesa", descricao: "Pró-labore", valor: 600000, data: dia1, status: "pago", categoriaId: cat("Folha e pró-labore") }),
       l({ tipo: "despesa", descricao: "Combustível", valor: 27500, data: d(-1), status: "pago", categoriaId: cat("Combustível"), contaId: caixa.id }),
-      l({ tipo: "despesa", descricao: "Internet fibra", valor: 15990, data: d(4), vencimento: d(4), status: "pendente", categoriaId: cat("Internet e telefone"), pessoaId: net.id }),
       l({ tipo: "despesa", descricao: "DAS Simples Nacional", valor: 186040, data: d(-2), vencimento: d(-2), status: "pendente", categoriaId: cat("Impostos") }),
+      l({ tipo: "despesa", descricao: "Internet fibra", valor: 15990, data: d(4), vencimento: d(4), status: "pendente", categoriaId: cat("Internet e telefone"), pessoaId: net.id }),
       l({ tipo: "receita", descricao: "Treinamento da equipe", valor: 350000, data: d(6), vencimento: d(6), status: "pendente", categoriaId: cat("Vendas e serviços"), pessoaId: joao.id }),
-      l({ tipo: "despesa", descricao: "Energia", valor: 41230, data: d(9), vencimento: d(9), status: "pendente", categoriaId: cat("Energia e água") }),
-      l({ tipo: "despesa", descricao: "Almoço com cliente", valor: 18600, data: d(-5), status: "pago", categoriaId: cat("Alimentação"), contaId: caixa.id,
-        divisao: [{ pessoaId: joao.id, valor: 9300 }] }),
     ]);
-    await db.config.put({ chave: "preparado", valor: true });
-  });
+  } else {
+    const ana = p("Ana", "outro");
+    await db.pessoas.bulkAdd([ana]);
+    await db.lancamentos.bulkAdd([
+      l({ tipo: "receita", descricao: "Salário", valor: 620000, data: dia1, status: "pago", categoriaId: cat("Salário") }),
+      l({ tipo: "despesa", descricao: "Aluguel", valor: 180000, data: dia1, status: "pago", categoriaId: cat("Moradia") }),
+      l({ tipo: "despesa", descricao: "Mercado do mês", valor: 74250, data: d(-20), status: "pago", categoriaId: cat("Mercado") }),
+      l({ tipo: "despesa", descricao: "Jantar com amigos", valor: 21800, data: d(-6), status: "pago", categoriaId: cat("Restaurantes e delivery"),
+        divisao: [{ pessoaId: ana.id, valor: 10900 }] }),
+      l({ tipo: "despesa", descricao: "Combustível", valor: 25000, data: d(-3), status: "pago", categoriaId: cat("Transporte"), contaId: caixa.id }),
+      l({ tipo: "despesa", descricao: "Streaming", valor: 5590, data: d(-2), status: "pago", categoriaId: cat("Assinaturas") }),
+      l({ tipo: "despesa", descricao: "Cartão de crédito", valor: 143720, data: d(-1), vencimento: d(-1), status: "pendente", categoriaId: cat("Dívidas e empréstimos") }),
+      l({ tipo: "despesa", descricao: "Conta de luz", valor: 18940, data: d(5), vencimento: d(5), status: "pendente", categoriaId: cat("Contas da casa") }),
+      l({ tipo: "receita", descricao: "Ana me devolve o jantar", valor: 10900, data: d(3), vencimento: d(3), status: "pendente", categoriaId: cat("Renda extra"), pessoaId: ana.id }),
+    ]);
+  }
 }
 
 export async function removerExemplos() {

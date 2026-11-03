@@ -47,8 +47,8 @@ export function LerConta({ aberta, fechar, dados, aoLer }: { aberta: boolean; fe
   }
 
   return (
-    <Folha titulo="Ler conta por foto" aberta={aberta} fechar={fechar}>
-      <p className="muted" style={{ margin: 0 }}>Fotografe um boleto, fatura, nota ou recibo. A IA preenche o lançamento e você confere antes de salvar.</p>
+    <Folha titulo="Ler conta pela foto" aberta={aberta} fechar={fechar}>
+      <p className="muted" style={{ margin: 0 }}>Fotografe um boleto, fatura, nota ou recibo, de frente e com boa luz. Valor, vencimento e categoria vêm preenchidos; você confere antes de salvar.</p>
       {url ? <img src={url} alt="Foto da conta" className="foto-previa" /> : (
         <div className="vazio card"><ScanText /><div>Nenhuma foto escolhida.</div></div>
       )}

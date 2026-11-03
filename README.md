@@ -1,9 +1,10 @@
-# Financeiro
+# Tostão
 
-Controle financeiro simples para celular e computador: lançamentos, pessoas, fechamento mensal, relatórios editáveis, leitura de conta por foto e um mini assistente.
+Financeiro do dia a dia, para você ou para a sua empresa: lançamentos, pessoas, fechamento mensal, relatórios editáveis, leitura de conta por foto e um mini assistente.
 
 - **Dados**: ficam só no aparelho (IndexedDB). Exporte backups em *Mais › Backup e dados*.
 - **IA** (leitura de conta e assistente): funções em `api/` rodando na Vercel com o Claude. Exige `ANTHROPIC_API_KEY` nas variáveis de ambiente da Vercel.
+- **Primeiro acesso**: boas-vindas em 6 etapas (nome, idade, uso pessoal ou empresa, objetivo e meta, saldo inicial) e tour guiado de 8 passos; depois, uma lista de primeiros passos no início.
 - **iPhone**: abra o endereço no Safari › Compartilhar › *Adicionar à Tela de Início*.
 
 ## Rodar localmente

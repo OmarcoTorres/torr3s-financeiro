@@ -58,11 +58,11 @@ export function Assistente({ aberta, fechar, dados }: { aberta: boolean; fechar:
   }
 
   return (
-    <Folha titulo="Assistente" aberta={aberta} fechar={fechar}>
+    <Folha titulo="Perguntar sobre os números" aberta={aberta} fechar={fechar}>
       <div className="chat">
         {msgs.length === 0 && (
           <>
-            <div className="msg a">Pergunte sobre seus números ou peça para registrar algo. Eu preparo o lançamento e você confirma antes de salvar.</div>
+            <div className="msg a">Pergunte sobre seus lançamentos, vencimentos e gastos, ou escreva algo como "paguei 150 de internet hoje": o lançamento aparece pronto e você confirma antes de salvar.</div>
             <div className="sugestoes">{SUGESTOES.map((s) => <button key={s} type="button" onClick={() => enviar(s)}>{s}</button>)}</div>
           </>
         )}
@@ -92,7 +92,7 @@ export function Assistente({ aberta, fechar, dados }: { aberta: boolean; fechar:
         <div ref={fim} />
       </div>
       <form className="chat-entrada" onSubmit={(e) => { e.preventDefault(); enviar(); }}>
-        <input id="assist-txt" value={texto} onChange={(e) => setTexto(e.target.value)} placeholder="Pergunte ou registre…" aria-label="Mensagem para o assistente" enterKeyHint="send" />
+        <input id="assist-txt" value={texto} onChange={(e) => setTexto(e.target.value)} placeholder="Ex.: quanto gastei com mercado?" aria-label="Pergunta" enterKeyHint="send" />
         <button className="btn pri icone" type="submit" aria-label="Enviar" disabled={pensando || !texto.trim()}><Send /></button>
       </form>
     </Folha>

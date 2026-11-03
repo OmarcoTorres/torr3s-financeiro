@@ -11,7 +11,7 @@ export const ICONES: Record<string, LucideIcon> = {
   utensils: Utensils, monitor: Monitor, tag: Tag, car: Car, cart: ShoppingCart, heart: Heart, school: GraduationCap,
   plane: Plane, wrench: Wrench, megaphone: Megaphone, piggy: PiggyBank, receipt: Receipt,
 };
-export const CORES = ["#0f3d2e", "#1f8a5b", "#2c7da0", "#3d7ea6", "#4a5bd0", "#8e5ad8", "#b23a48", "#d0604a", "#c2702b", "#d89a1c", "#5e9f3e", "#6b7a74"];
+export const CORES = ["#b8681c", "#16202c", "#1f8a5b", "#2c7da0", "#3d7ea6", "#4a5bd0", "#8e5ad8", "#b23a48", "#d0604a", "#c2702b", "#d89a1c", "#5e9f3e", "#6b7a74"];
 
 export function IconeCategoria({ icone, cor, transferencia }: { icone?: string; cor?: string; transferencia?: boolean }) {
   const I = transferencia ? ArrowLeftRight : ICONES[icone ?? "tag"] ?? Tag;
@@ -94,4 +94,10 @@ export function BotaoConfirmar({ children, confirmar, onConfirm, className = "bt
   const [armado, setArmado] = useState(false);
   useEffect(() => { if (!armado) return; const t = setTimeout(() => setArmado(false), 4000); return () => clearTimeout(t); }, [armado]);
   return <button type="button" className={className} onClick={() => (armado ? (setArmado(false), onConfirm()) : setArmado(true))}>{armado ? confirmar : children}</button>;
+}
+
+/** Marca um item da lista "Primeiros passos" como concluído. */
+export async function marcarProgresso(chave: "contas" | "relatorio" | "backup") {
+  const atual = ((await db.config.get("progresso"))?.valor ?? {}) as Record<string, boolean>;
+  if (!atual[chave]) await db.config.put({ chave: "progresso", valor: { ...atual, [chave]: true } });
 }

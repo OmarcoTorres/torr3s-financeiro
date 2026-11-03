@@ -1,16 +1,19 @@
 import { useEffect, useState } from "react";
-import { CalendarCheck, ChevronRight, Database, Lock, LockOpen, Palette, Tags, Wallet } from "lucide-react";
-import { criarPadroes, db, novoId, type Categoria, type Conta } from "../db";
+import { CalendarCheck, ChevronRight, Database, GraduationCap, Lock, LockOpen, Palette, Tags, UserRound, Wallet } from "lucide-react";
+import { db, novoId, type Categoria, type Conta, type Objetivo, type Perfil } from "../db";
+import { OBJETIVOS } from "../lib/perfil";
 import { mesAtual, resumoMes, somarMeses } from "../lib/calc";
 import { dataCurta, dinheiro, lerValor, mesExtenso, numeroBR } from "../lib/format";
 import { apagarTudo, exportarBackup, importarBackup } from "../lib/backup";
-import { BotaoConfirmar, CORES, Campo, Folha, ICONES, IconeCategoria, Seg, useAviso, useConfig, type DadosApp } from "../components/ui";
+import { BotaoConfirmar, CORES, Campo, Folha, ICONES, IconeCategoria, Seg, marcarProgresso, useAviso, useConfig, type DadosApp } from "../components/ui";
 
-export type Secao = "" | "fechamento" | "categorias" | "contas" | "aparencia" | "backup";
+export type Secao = "" | "perfil" | "fechamento" | "categorias" | "contas" | "aparencia" | "backup";
 
-export function Mais({ dados, secao, setSecao }: { dados: DadosApp; secao: Secao; setSecao: (s: Secao) => void }) {
+export function Mais({ dados, secao, setSecao, refazerTour }: { dados: DadosApp; secao: Secao; setSecao: (s: Secao) => void; refazerTour: () => void }) {
   const fechar = () => setSecao("");
+  useEffect(() => { if (secao === "contas") marcarProgresso("contas"); }, [secao]);
   const itens: [Secao, typeof Wallet, string, string][] = [
+    ["perfil", UserRound, "Seu perfil e objetivo", "Nome, idade, objetivo e meta do mês"],
     ["fechamento", CalendarCheck, "Fechamento mensal", "Saldo do mês, pendências e fechar/reabrir"],
     ["categorias", Tags, "Categorias", "Nomes, cores, ícones e subcategorias"],
     ["contas", Wallet, "Contas e carteiras", "Bancos, caixa e saldo inicial"],
@@ -26,7 +29,12 @@ export function Mais({ dados, secao, setSecao }: { dados: DadosApp; secao: Secao
           ))}
         </div>
       </section>
-      <p className="muted" style={{ fontSize: ".8rem", margin: 0, textAlign: "center" }}>Os dados ficam salvos só neste aparelho. Faça backup com frequência.</p>
+            <section className="card" style={{ gap: 8 }}>
+        <h2>Treinamento</h2>
+        <p className="muted" style={{ fontSize: ".9rem" }}>Reveja o tour guiado que mostra onde fica cada coisa.</p>
+        <div><button type="button" className="btn" onClick={refazerTour}><GraduationCap />Refazer o tour</button></div>
+      </section>
+      <Folha titulo="Seu perfil e objetivo" aberta={secao === "perfil"} fechar={fechar}><EditarPerfil fechar={fechar} /></Folha>
       <Folha titulo="Fechamento mensal" aberta={secao === "fechamento"} fechar={fechar}><Fechamento dados={dados} /></Folha>
       <Folha titulo="Categorias" aberta={secao === "categorias"} fechar={fechar}><Categorias dados={dados} /></Folha>
       <Folha titulo="Contas e carteiras" aberta={secao === "contas"} fechar={fechar}><Contas dados={dados} /></Folha>
@@ -216,9 +224,9 @@ function Contas({ dados }: { dados: DadosApp }) {
 
 function Aparencia() {
   const aviso = useAviso();
-  const [empresa, setEmpresa] = useConfig("empresa", "Minha empresa");
+  const [empresa, setEmpresa] = useConfig("empresa", "");
   const [logo, setLogo] = useConfig<string>("logo", "");
-  const [cor, setCor] = useConfig("cor", "#0f3d2e");
+  const [cor, setCor] = useConfig("cor", "#b8681c");
   const [tema, setTema] = useConfig<"sistema" | "claro" | "escuro">("tema", "sistema");
   const [nome, setNome] = useState(empresa);
   useEffect(() => { setNome(empresa); }, [empresa]);
@@ -233,7 +241,7 @@ function Aparencia() {
   }
   return (
     <>
-      <Campo rotulo="Nome da empresa"><input id="ap-nome" value={nome} onChange={(e) => setNome(e.target.value)} onBlur={() => setEmpresa(nome.trim() || "Minha empresa")} maxLength={60} /></Campo>
+      <Campo rotulo="Nome exibido no topo e nos relatórios"><input id="ap-nome" value={nome} onChange={(e) => setNome(e.target.value)} onBlur={() => nome.trim() && setEmpresa(nome.trim())} maxLength={60} /></Campo>
       <div className="campo"><span>Logo</span>
         <div className="linha-botoes" style={{ alignItems: "center" }}>
           {logo && <img src={logo} alt="Logo atual" style={{ width: 48, height: 48, borderRadius: 12, objectFit: "cover" }} />}
@@ -248,7 +256,7 @@ function Aparencia() {
         </div>
       </div>
       <div className="campo"><span>Tema</span><Seg rotulo="Tema" valor={tema} mudar={setTema} opcoes={[["sistema", "Automático"], ["claro", "Claro"], ["escuro", "Escuro"]]} /></div>
-      <button type="button" className="btn pri" onClick={async () => { await setEmpresa(nome.trim() || "Minha empresa"); aviso("Aparência salva."); }}>Salvar</button>
+      <button type="button" className="btn pri" onClick={async () => { if (nome.trim()) await setEmpresa(nome.trim()); aviso("Aparência salva."); }}>Salvar</button>
     </>
   );
 }
@@ -259,7 +267,7 @@ function Backup() {
   return (
     <>
       <p className="muted" style={{ margin: 0 }}>Tudo fica guardado só neste aparelho. Se o navegador for limpo ou o celular trocado, os dados somem; por isso, exporte um backup com frequência e guarde o arquivo (iCloud Drive, Google Drive, e-mail).</p>
-      <button type="button" className="btn pri" onClick={async () => { await exportarBackup(); aviso("Backup exportado."); }}>Exportar backup (arquivo)</button>
+      <button type="button" className="btn pri" onClick={async () => { await exportarBackup(); await marcarProgresso("backup"); aviso("Backup exportado."); }}>Exportar backup (arquivo)</button>
       <label className="btn">Importar backup
         <input type="file" accept="application/json,.json" hidden onChange={async (e) => {
           const f = e.target.files?.[0]; if (!f) return; setErro("");
@@ -270,8 +278,50 @@ function Backup() {
       <p className="muted" style={{ margin: 0, fontSize: ".82rem" }}>Importar substitui todos os dados atuais pelos do arquivo.</p>
       {erro && <div className="aviso neg" role="alert">{erro}</div>}
       <hr style={{ border: 0, borderTop: "1px solid var(--line)", width: "100%" }} />
-      <BotaoConfirmar confirmar="Toque de novo: apaga tudo para sempre" onConfirm={async () => { await apagarTudo(); await criarPadroes(); await db.config.put({ chave: "preparado", valor: true }); aviso("Todos os dados foram apagados."); }}>Apagar todos os dados</BotaoConfirmar>
+      <BotaoConfirmar confirmar="Toque de novo: apaga tudo para sempre" onConfirm={async () => { await apagarTudo(); aviso("Todos os dados foram apagados."); }}>Apagar todos os dados</BotaoConfirmar>
     </>
   );
 }
 
+function EditarPerfil({ fechar }: { fechar: () => void }) {
+  const aviso = useAviso();
+  const [perfil, setPerfil] = useConfig<Perfil | null>("perfil", null);
+  const [, setEmpresaCfg] = useConfig("empresa", "");
+  const [nome, setNome] = useState("");
+  const [idade, setIdade] = useState("");
+  const [empresa, setEmpresa] = useState("");
+  const [objetivo, setObjetivo] = useState<Objetivo>("organizar");
+  const [metaTxt, setMetaTxt] = useState("");
+  useEffect(() => {
+    if (!perfil) return;
+    setNome(perfil.nome); setIdade(perfil.idade ? String(perfil.idade) : ""); setEmpresa(perfil.empresa ?? "");
+    setObjetivo(perfil.objetivo); setMetaTxt(perfil.meta ? numeroBR(perfil.meta) : "");
+  }, [perfil]);
+  if (!perfil) return null;
+  const meta = OBJETIVOS[objetivo].meta;
+  async function salvar() {
+    if (!perfil || nome.trim().length < 2) { aviso("Escreva o seu nome."); return; }
+    const novo: Perfil = { ...perfil, nome: nome.trim(), idade: idade ? Number(idade) : undefined, empresa: perfil.uso === "empresa" ? empresa.trim() || perfil.empresa : undefined, objetivo, meta: meta ? lerValor(metaTxt) ?? undefined : undefined };
+    await setPerfil(novo);
+    await setEmpresaCfg(novo.uso === "empresa" && novo.empresa ? novo.empresa : novo.nome);
+    aviso("Perfil atualizado."); fechar();
+  }
+  return (
+    <>
+      <div className="duas">
+        <Campo rotulo="Nome"><input id="pf-nome" value={nome} onChange={(e) => setNome(e.target.value)} maxLength={60} /></Campo>
+        <Campo rotulo="Idade"><input id="pf-idade" inputMode="numeric" value={idade} onChange={(e) => setIdade(e.target.value.replace(/\D/g, "").slice(0, 3))} /></Campo>
+      </div>
+      {perfil.uso === "empresa" && <Campo rotulo="Empresa"><input id="pf-emp" value={empresa} onChange={(e) => setEmpresa(e.target.value)} maxLength={60} /></Campo>}
+      <Campo rotulo="Objetivo agora">
+        <select id="pf-obj" value={objetivo} onChange={(e) => setObjetivo(e.target.value as Objetivo)}>
+          {(Object.keys(OBJETIVOS) as Objetivo[]).map((k) => <option key={k} value={k}>{OBJETIVOS[k].titulo}</option>)}
+        </select>
+      </Campo>
+      <p className="muted" style={{ fontSize: ".86rem", marginTop: -6 }}>{OBJETIVOS[objetivo].descricao[perfil.uso]}</p>
+      {meta && <Campo rotulo={meta.rotulo}><input id="pf-meta" inputMode="decimal" placeholder="R$ 0,00" value={metaTxt} onChange={(e) => setMetaTxt(e.target.value)} /></Campo>}
+      <p className="muted" style={{ fontSize: ".82rem" }}>Uso: {perfil.uso === "empresa" ? "empresa" : "pessoal"}. Para trocar, apague os dados em Backup e dados e comece de novo.</p>
+      <button type="button" className="btn pri" onClick={salvar}>Salvar</button>
+    </>
+  );
+}
