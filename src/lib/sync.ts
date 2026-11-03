@@ -1,6 +1,6 @@
 import Dexie from "dexie";
 import { useSyncExternalStore } from "react";
-import { db, type Perfil } from "../db";
+import { db, type Compartilhado, type Perfil } from "../db";
 import { supabase } from "./supabase";
 import { desligarPushAoSair } from "./push";
 
@@ -15,8 +15,8 @@ type Campo = string;
 const TABELAS: Record<string, { campos: Campo[]; chaveLocal?: string }> = {
   contas: { campos: ["id", "nome", "saldoInicial", "cor", "tipo", "limite", "vencimentoDia", "final"] },
   categorias: { campos: ["id", "nome", "tipo", "cor", "icone", "paiId"] },
-  pessoas: { campos: ["id", "nome", "tipo", "telefone", "observacao"] },
-  lancamentos: { campos: ["id", "tipo", "descricao", "valor", "data", "vencimento", "categoriaId", "contaId", "contaDestinoId", "pessoaId", "status", "observacao", "fotoId", "grupo", "parcela", "totalParcelas", "recorrente", "divisao", "criadoEm"] },
+  pessoas: { campos: ["id", "nome", "tipo", "telefone", "observacao", "userId"] },
+  lancamentos: { campos: ["id", "tipo", "descricao", "valor", "data", "vencimento", "categoriaId", "contaId", "contaDestinoId", "pessoaId", "status", "observacao", "fotoId", "grupo", "parcela", "totalParcelas", "recorrente", "divisao", "compartilhado", "criadoEm"] },
   metas: { campos: ["id", "nome", "alvo", "guardado", "prazo", "icone", "cor", "aportes", "criadoEm"] },
   fechamentos: { campos: ["mes", "fechadoEm", "resumo"], chaveLocal: "mes" },
   relatorios: { campos: ["id", "nome", "config"] },
@@ -184,6 +184,58 @@ async function receber(espaco: string) {
   }
 }
 
+// ---------- Compartilhados pelo grupo (só leitura) ----------
+async function receberCompartilhados(userId: string) {
+  const chave = `cursor:compartilhados:${userId}`;
+  const desde = ((await db.config.get(chave))?.valor as string | undefined) ?? "1970-01-01T00:00:00Z";
+  const margem = new Date(new Date(desde).getTime() - 5000).toISOString();
+  const { data, error } = await supabase.rpc("compartilhados_desde", { p_desde: margem });
+  if (error) { if (/compartilhados_desde/.test(error.message)) return; throw error; } // banco ainda sem a migração 0005
+  const linhas = (data ?? []) as Record<string, unknown>[];
+  if (!linhas.length) return;
+  await db.transaction("rw", db.compartilhados, db.config, async () => {
+    const sair = linhas.filter((l) => !l.visivel).map((l) => String(l.id));
+    const entrar = linhas.filter((l) => l.visivel).map((l) => ({
+      id: String(l.id), autorId: String(l.autor_id), autorNome: String(l.autor_nome), tipo: l.tipo as Compartilhado["tipo"],
+      descricao: String(l.descricao ?? ""), valor: Number(l.valor ?? 0), data: String(l.data), vencimento: (l.vencimento as string) || undefined,
+      status: l.status as Compartilhado["status"], categoriaNome: (l.categoria_nome as string) || undefined, categoriaCor: (l.categoria_cor as string) || undefined,
+      observacao: (l.observacao as string) || undefined, atualizadoEm: String(l.atualizado_em),
+    }));
+    if (sair.length) await db.compartilhados.bulkDelete(sair);
+    if (entrar.length) await db.compartilhados.bulkPut(entrar);
+    await db.config.put({ chave, valor: String(linhas[linhas.length - 1].atualizado_em) });
+  });
+}
+
+/** Ao sair do grupo com alguém: some com o que essa pessoa tinha compartilhado. */
+export async function esquecerCompartilhadosDe(autorId: string) {
+  const ids = await db.compartilhados.where("autorId").equals(autorId).primaryKeys();
+  await db.compartilhados.bulkDelete(ids);
+}
+
+// ---------- Convite para o grupo ----------
+const CHAVE_CONVITE = "investmais-convite";
+/** Guarda o código que veio no link (?convite=...) até a pessoa terminar o cadastro. */
+export function capturarConviteDaUrl() {
+  const u = new URL(location.href);
+  const c = u.searchParams.get("convite");
+  if (!c) return;
+  try { localStorage.setItem(CHAVE_CONVITE, c.trim().toUpperCase()); } catch { /* sem armazenamento */ }
+  u.searchParams.delete("convite");
+  history.replaceState(null, "", u.pathname + u.hash);
+}
+export function convitePendente() { try { return localStorage.getItem(CHAVE_CONVITE); } catch { return null; } }
+export function limparConvitePendente() { try { localStorage.removeItem(CHAVE_CONVITE); } catch { /* ignora */ } }
+
+/** Aceita um convite de grupo; devolve o nome de quem convidou. */
+export async function aceitarConviteGrupo(codigo: string) {
+  const { data, error } = await supabase.rpc("aceitar_convite_grupo", { p_codigo: codigo.trim().toUpperCase() });
+  if (error) throw new Error(/aceitar_convite_grupo/.test(error.message) ? "Falta atualizar o banco (migração 0005)." : error.message);
+  limparConvitePendente();
+  await ciclo();
+  return String(data ?? "Alguém");
+}
+
 // ---------- Ciclo e início ----------
 let sessao: { espaco: string; userId: string } | null = null;
 let rodando = false;
@@ -197,6 +249,7 @@ async function ciclo() {
   try {
     await enviar(sessao.espaco, sessao.userId);
     await receber(sessao.espaco);
+    await receberCompartilhados(sessao.userId);
     mudar({ status: "ok", erro: undefined });
   } catch (e) {
     console.error("sincronização", e);
@@ -302,8 +355,8 @@ export async function sairDaConta() {
   // Antes do signOut (ainda com permissão): o aparelho deixa de receber os avisos desta conta.
   await desligarPushAoSair();
   await supabase.auth.signOut();
-  await aplicarRemoto([...TABELAS_DADOS, "fila", "config"], async () => {
-    for (const t of [...TABELAS_DADOS, "fila", "config"]) await db.table(t).clear();
+  await aplicarRemoto([...TABELAS_DADOS, "fila", "config", "compartilhados"], async () => {
+    for (const t of [...TABELAS_DADOS, "fila", "config", "compartilhados"]) await db.table(t).clear();
   });
   mudar({ status: "desligado", espacoId: undefined, pendentes: 0 });
 }

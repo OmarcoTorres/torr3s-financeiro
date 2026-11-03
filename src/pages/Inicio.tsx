@@ -4,7 +4,7 @@ import { ehCartao, type Lancamento, type Perfil } from "../db";
 import { hoje, mesAtual, saldosContas, situacao, somarDias, totais } from "../lib/calc";
 import { mesExtenso } from "../lib/format";
 import { OBJETIVOS, dicaDoDia } from "../lib/perfil";
-import { ItemLancamento } from "../components/ItemLancamento";
+import { ItemCompartilhado, ItemLancamento } from "../components/ItemLancamento";
 import { OcultarValores, useConfig, useDinheiro, useTextoSemValores, type DadosApp } from "../components/ui";
 import { MiniCartao, situacaoCartao } from "./Cartoes";
 import { ItemMeta } from "./Metas";
@@ -124,6 +124,13 @@ function Painel({ dados, perfil, abrir, novo, lerConta, perguntar, ir, prog, set
             </div>
           ) : <div className="vazio"><PieChart /><div>As despesas pagas do mês aparecem aqui, separadas por categoria.</div></div>}
         </section>
+
+        {dados.compartilhados.length > 0 && (
+          <section className="card">
+            <div className="cab"><h2>Compartilhado com você</h2><button type="button" className="btn fantasma" onClick={() => ir("transacoes")}>Ver todos</button></div>
+            <div className="lista">{[...dados.compartilhados].sort((a, b) => b.data.localeCompare(a.data)).slice(0, 5).map((c) => <ItemCompartilhado key={c.id} c={c} mostrarData />)}</div>
+          </section>
+        )}
 
         <section className="card">
           <div className="cab"><h2>Últimas transações</h2><button type="button" className="btn fantasma" onClick={() => ir("transacoes")}>Ver todas</button></div>

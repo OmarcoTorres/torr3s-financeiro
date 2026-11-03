@@ -25,12 +25,20 @@ export interface Lancamento {
   totalParcelas?: number;
   recorrente?: boolean;
   divisao?: Divisao[];
+  /** Visível para as pessoas do grupo (só leitura para elas). */
+  compartilhado?: boolean;
   exemplo?: boolean;
   criadoEm: string;
 }
 
 export type TipoPessoa = "cliente" | "fornecedor" | "socio" | "funcionario" | "outro";
-export interface Pessoa { id: string; nome: string; tipo: TipoPessoa; telefone?: string; observacao?: string; exemplo?: boolean }
+export interface Pessoa { id: string; nome: string; tipo: TipoPessoa; telefone?: string; observacao?: string; exemplo?: boolean; /** Usuário do Invest+ ligado a esta pessoa (grupo). */ userId?: string }
+
+/** Lançamento que alguém do grupo compartilhou comigo (só leitura, vem do servidor). */
+export interface Compartilhado {
+  id: string; autorId: string; autorNome: string; tipo: Tipo; descricao: string; valor: number; data: string; vencimento?: string;
+  status: Status; categoriaNome?: string; categoriaCor?: string; observacao?: string; atualizadoEm: string;
+}
 
 export interface Categoria { id: string; nome: string; tipo: "receita" | "despesa"; cor: string; icone: string; paiId?: string }
 /** Conta bancária, carteira ou cartão de crédito (tipo "cartao": o saldo negativo é a fatura em aberto). */
@@ -85,6 +93,7 @@ class Banco extends Dexie {
   config!: EntityTable<Config, "chave">;
   metas!: EntityTable<Meta, "id">;
   fila!: EntityTable<ItemFila, "chave">;
+  compartilhados!: EntityTable<Compartilhado, "id">;
 
   constructor() {
     super("financeiro");
@@ -100,6 +109,7 @@ class Banco extends Dexie {
     });
     this.version(2).stores({ metas: "id" });
     this.version(3).stores({ fila: "chave, quando" });
+    this.version(4).stores({ compartilhados: "id, autorId, data" });
   }
 }
 

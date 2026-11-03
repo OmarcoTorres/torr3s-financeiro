@@ -33,6 +33,7 @@ export function LancamentoForm({ rascunho, fotoNova, fechar, dados }: { rascunho
   const [contaDestinoId, setContaDestinoId] = useState("");
   const [pessoaId, setPessoaId] = useState("");
   const [observacao, setObservacao] = useState("");
+  const [compartilhado, setCompartilhado] = useState(false);
   const [foto, setFoto] = useState<Blob | undefined>();
   const [fotoUrl, setFotoUrl] = useState("");
   const [repetir, setRepetir] = useState<Repetir>("nao");
@@ -57,6 +58,7 @@ export function LancamentoForm({ rascunho, fotoNova, fechar, dados }: { rascunho
     setContaDestinoId(r.contaDestinoId ?? "");
     setPessoaId(r.pessoaId ?? "");
     setObservacao(r.observacao ?? "");
+    setCompartilhado(!!r.compartilhado);
     setRepetir("nao"); setVezes("2"); setErro("");
     setDividir(!!r.divisao?.length); setModoDiv("valor");
     setPartes((r.divisao ?? []).map((d) => ({ pessoaId: d.pessoaId, txt: numeroBR(d.valor) })));
@@ -72,6 +74,9 @@ export function LancamentoForm({ rascunho, fotoNova, fechar, dados }: { rascunho
   }, [foto]);
 
   const valor = lerValor(valorTxt) ?? 0;
+  const doGrupo = dados.pessoas.filter((p) => p.userId);
+  const temGrupo = doGrupo.length > 0;
+  const nomesGrupo = doGrupo.map((p) => p.nome.split(" ")[0]).join(", ");
   const bloqueado = editando && rascunho?.data ? mesFechado(dados.fech, rascunho.data) : false;
   const catsDoTipo = useMemo(() => {
     const doTipo = dados.cats.filter((c) => tipo !== "transferencia" && c.tipo === tipo);
@@ -109,6 +114,7 @@ export function LancamentoForm({ rascunho, fotoNova, fechar, dados }: { rascunho
       categoriaId: tipo === "transferencia" ? undefined : categoriaId || undefined,
       contaId, contaDestinoId: tipo === "transferencia" ? contaDestinoId : undefined,
       pessoaId: pessoaId || undefined, observacao: observacao.trim() || undefined, fotoId,
+      compartilhado: tipo !== "transferencia" && compartilhado ? true : undefined,
       divisao: divisao.length ? divisao : undefined,
     };
 
@@ -200,7 +206,7 @@ export function LancamentoForm({ rascunho, fotoNova, fechar, dados }: { rascunho
             </Campo>
           ) : (
             <Campo rotulo="Pessoa">
-              <select id="f-pessoa" value={pessoaId} onChange={(e) => setPessoaId(e.target.value)}>
+              <select id="f-pessoa" value={pessoaId} onChange={(e) => { setPessoaId(e.target.value); if (dados.pessoas.find((p) => p.id === e.target.value)?.userId) setCompartilhado(true); }}>
                 <option value="">Nenhuma</option>
                 {dados.pessoas.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
               </select>
@@ -258,6 +264,13 @@ export function LancamentoForm({ rascunho, fotoNova, fechar, dados }: { rascunho
               </>
             )}
           </div>
+        )}
+
+        {tipo !== "transferencia" && temGrupo && (
+          <label className="linha-toggle" style={{ background: "var(--surface-2)", borderRadius: 16, padding: "12px 14px", borderBottom: 0 }}>
+            <span><b>Compartilhar com meu grupo</b><small>{nomesGrupo ? `${nomesGrupo} ${nomesGrupo.includes(",") ? "veem" : "vê"} esta ${tipo === "receita" ? "receita" : "despesa"}, sem poder editar.` : "As pessoas do seu grupo veem este lançamento, sem poder editar."}</small></span>
+            <input type="checkbox" className="interruptor" checked={compartilhado} onChange={(e) => setCompartilhado(e.target.checked)} />
+          </label>
         )}
 
         <Campo rotulo="Observação"><textarea id="f-obs" value={observacao} onChange={(e) => setObservacao(e.target.value)} maxLength={1000} /></Campo>

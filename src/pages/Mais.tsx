@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { Bell, CalendarCheck, CheckCircle2, Smartphone, ChevronRight, Copy, CreditCard, Landmark, LogOut, ShieldCheck, Share2, Database, GraduationCap, Lock, LockOpen, Palette, Tags, UserRound, Users, Wallet } from "lucide-react";
+import { Bell, CalendarCheck, CheckCircle2, Smartphone, ChevronRight, CreditCard, Landmark, LogOut, ShieldCheck, Share2, Database, GraduationCap, Lock, LockOpen, Palette, Tags, UserRound, Users, Wallet } from "lucide-react";
 import { db, ehCartao, novoId, type Categoria, type Conta, type Objetivo, type Perfil } from "../db";
 import { OBJETIVOS } from "../lib/perfil";
 import { supabase } from "../lib/supabase";
-import { entrarComCodigo, sairDaConta, trocarEspaco, useSync } from "../lib/sync";
+import { sairDaConta, trocarEspaco, useSync } from "../lib/sync";
+import { SeuGrupo } from "../components/Grupo";
 import { mesAtual, resumoMes } from "../lib/calc";
 import { dataCurta, dinheiro, lerValor, mesExtenso, numeroBR } from "../lib/format";
 import { apagarTudo, exportarBackup, importarBackup } from "../lib/backup";
@@ -17,7 +18,7 @@ export function Mais({ dados, email, userId, secao, setSecao, refazerTour, irAba
   const fechar = () => setSecao("");
   useEffect(() => { if (secao === "contas") marcarProgresso("contas"); }, [secao]);
   const itens: [Secao, typeof Wallet, string, string][] = [
-    ["conta", Share2, "Conta e compartilhamento", email],
+    ["conta", Share2, "Conta e grupo", `${email} · convidar pelo WhatsApp`],
     ["notificacoes", Bell, "Notificações", "Vencimentos, faturas, metas e resumo da semana"],
     ["instalar", Smartphone, "Instalar no celular", "Ícone na tela de início, em tela cheia"],
     ["perfil", UserRound, "Seu perfil e objetivo", "Nome, idade, objetivo e meta do mês"],
@@ -48,7 +49,7 @@ export function Mais({ dados, email, userId, secao, setSecao, refazerTour, irAba
         <p className="muted" style={{ fontSize: ".9rem" }}>Reveja o tour guiado que mostra onde fica cada coisa.</p>
         <div><button type="button" className="btn" onClick={refazerTour}><GraduationCap />Refazer o tour</button></div>
       </section>
-      <Folha titulo="Conta e compartilhamento" aberta={secao === "conta"} fechar={fechar}><ContaECompartilhar email={email} userId={userId} /></Folha>
+      <Folha titulo="Conta e grupo" aberta={secao === "conta"} fechar={fechar}><ContaECompartilhar email={email} userId={userId} /></Folha>
       <Folha titulo="Notificações" aberta={secao === "notificacoes"} fechar={fechar}><Notificacoes userId={userId} irInstalar={() => setSecao("instalar")} /></Folha>
       <Folha titulo="Instalar no celular" aberta={secao === "instalar"} fechar={fechar}><GuiaInstalacao irNotificacoes={() => setSecao("notificacoes")} /></Folha>
       <Folha titulo="Open Finance" aberta={secao === "openfinance"} fechar={fechar}><OpenFinance /></Folha>
@@ -346,29 +347,18 @@ function ContaECompartilhar({ email, userId }: { email: string; userId: string }
   const aviso = useAviso();
   const sync = useSync();
   const [espacos, setEspacos] = useState<EspacoInfo[] | null>(null);
-  const [codigo, setCodigo] = useState("");
-  const [gerado, setGerado] = useState("");
   const [trabalhando, setTrabalhando] = useState(false);
   const [erro, setErro] = useState("");
 
-  const carregar = () => supabase.rpc("meus_espacos").then(({ data, error }) => { if (error) setErro(error.message); else setEspacos((data ?? []) as EspacoInfo[]); });
+  // Lista de espaços só aparece para quem participa de mais de um (modelo antigo); erro aqui não interessa ao usuário.
+  const carregar = () => supabase.rpc("meus_espacos").then(({ data, error }) => setEspacos(error ? [] : ((data ?? []) as EspacoInfo[])));
   useEffect(() => { void carregar(); }, [sync.espacoId]);
-  const atual = espacos?.find((e) => e.id === sync.espacoId);
 
   async function rodar(fn: () => Promise<unknown>, ok: string) {
     setTrabalhando(true); setErro("");
     try { await fn(); aviso(ok); await carregar(); } catch (e) { setErro(String((e as Error)?.message ?? e)); } finally { setTrabalhando(false); }
   }
 
-  async function convidar() {
-    if (!atual) return;
-    const { data, error } = await supabase.rpc("gerar_convite", { p_espaco: atual.id });
-    if (error) throw error;
-    setGerado(String(data));
-  }
-  async function copiar() {
-    try { await navigator.clipboard.writeText(gerado); aviso("Código copiado."); } catch { aviso("Selecione o código e copie."); }
-  }
 
   return (
     <>
@@ -381,12 +371,14 @@ function ContaECompartilhar({ email, userId }: { email: string; userId: string }
         </span>
       </div>
 
-      <h2 style={{ fontSize: "1rem" }}>Espaços</h2>
-      <p className="muted" style={{ fontSize: ".86rem", marginTop: -8 }}>Cada espaço é um financeiro separado. Para dividir as contas com alguém, convide essa pessoa para o seu espaço.</p>
-      {espacos === null ? <span className="carregando" aria-label="Carregando" /> : (
-        <div className="lista">
+      <SeuGrupo />
+
+      {espacos && espacos.length > 1 && (
+        <div className="bloco">
+          <b>Espaços</b>
+          <span className="muted" style={{ fontSize: ".84rem" }}>Você participa de mais de um financeiro. Escolha qual este aparelho mostra.</span>
           {espacos.map((e) => (
-            <div key={e.id} className="cab" style={{ padding: "10px 0", borderBottom: "1px solid var(--line)" }}>
+            <div key={e.id} className="cab" style={{ padding: "8px 0", borderTop: "1px solid var(--line)" }}>
               <div style={{ minWidth: 0 }}>
                 <b>{e.nome}</b> {e.id === sync.espacoId && <span className="chip">em uso</span>}
                 <div className="muted" style={{ fontSize: ".8rem" }}>{e.membros.map((m) => m.user_id === userId ? "você" : m.nome).join(", ")}</div>
@@ -396,28 +388,6 @@ function ContaECompartilhar({ email, userId }: { email: string; userId: string }
           ))}
         </div>
       )}
-
-      {atual?.papel === "dono" && (
-        <div className="bloco">
-          <b>Convidar alguém para “{atual.nome}”</b>
-          <span className="muted" style={{ fontSize: ".84rem" }}>Gere um código e envie para a pessoa. Ela cria a conta dela, vai em Ajustes › Conta e compartilhamento e digita o código. O código vale 7 dias e uma vez.</span>
-          {gerado ? (
-            <div className="linha-botoes" style={{ alignItems: "center" }}>
-              <b className="num" style={{ fontFamily: "var(--display)", fontSize: "1.6rem", letterSpacing: ".12em", userSelect: "all" }}>{gerado}</b>
-              <button type="button" className="btn" onClick={copiar}><Copy />Copiar</button>
-            </div>
-          ) : <div><button type="button" className="btn pri" disabled={trabalhando} onClick={() => rodar(convidar, "Código gerado.")}>Gerar código de convite</button></div>}
-        </div>
-      )}
-
-      <div className="bloco">
-        <b>Recebeu um código?</b>
-        <div className="busca">
-          <input className="entrada" id="cv-codigo" placeholder="Ex.: 4F9A2C1B" value={codigo} onChange={(e) => setCodigo(e.target.value.toUpperCase())} maxLength={12} aria-label="Código de convite" />
-          <button type="button" className="btn pri" disabled={trabalhando || codigo.trim().length < 6} onClick={() => rodar(() => entrarComCodigo(userId, codigo), "Você entrou no espaço.")}>Entrar</button>
-        </div>
-        <span className="muted" style={{ fontSize: ".8rem" }}>Ao entrar, este aparelho passa a mostrar o espaço compartilhado. O seu espaço pessoal continua na lista acima.</span>
-      </div>
 
       {erro && <div className="aviso neg" role="alert">{erro}</div>}
       <BotaoConfirmar className="btn perigo" confirmar="Toque de novo para sair" onConfirm={() => void sairDaConta()}><LogOut />Sair da conta</BotaoConfirmar>

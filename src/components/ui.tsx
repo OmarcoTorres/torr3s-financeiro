@@ -28,8 +28,9 @@ export function useDados() {
   const pessoas = useLiveQuery(() => db.pessoas.toArray(), []);
   const fech = useLiveQuery(() => db.fechamentos.toArray(), []);
   const metas = useLiveQuery(() => db.metas.toArray(), []);
-  const pronto = !!(lanc && cats && contas && pessoas && fech && metas);
-  return { pronto, lanc: lanc ?? [], cats: cats ?? [], contas: contas ?? [], pessoas: pessoas ?? [], fech: fech ?? [], metas: metas ?? [] };
+  const compartilhados = useLiveQuery(() => db.compartilhados.toArray(), []);
+  const pronto = !!(lanc && cats && contas && pessoas && fech && metas && compartilhados);
+  return { pronto, lanc: lanc ?? [], cats: cats ?? [], contas: contas ?? [], pessoas: pessoas ?? [], fech: fech ?? [], metas: metas ?? [], compartilhados: compartilhados ?? [] };
 }
 export type DadosApp = ReturnType<typeof useDados>;
 

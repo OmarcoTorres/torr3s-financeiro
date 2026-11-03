@@ -3,7 +3,7 @@ import { UserPlus, Users } from "lucide-react";
 import { db, novoId, type Lancamento, type Pessoa, type TipoPessoa } from "../db";
 import { saldoPessoa } from "../lib/calc";
 import { dataCurta, dinheiro } from "../lib/format";
-import { ItemLancamento } from "../components/ItemLancamento";
+import { ItemCompartilhado, ItemLancamento } from "../components/ItemLancamento";
 import { BotaoConfirmar, Campo, Folha, useAviso, type DadosApp } from "../components/ui";
 import { InputNome, InputTelefone } from "../components/campos";
 
@@ -70,7 +70,17 @@ function Ficha({ p, dados, fechar, abrir, editar }: { p: Pessoa; dados: DadosApp
           ))}
         </div>
       )}
-      <h2 style={{ fontSize: "1rem" }}>Histórico</h2>
+      {p.userId && (
+        <>
+          <div className="aviso dica"><Users size={18} /><div><b>Do seu grupo no Invest+.</b> Abaixo, o que {p.nome.split(" ")[0]} compartilhou com você.</div></div>
+          {(() => {
+            const dela = dados.compartilhados.filter((c) => c.autorId === p.userId).sort((a, b) => b.data.localeCompare(a.data));
+            return dela.length ? <div className="lista">{dela.slice(0, 30).map((c) => <ItemCompartilhado key={c.id} c={c} mostrarData />)}</div>
+              : <p className="muted" style={{ margin: 0 }}>Nada compartilhado ainda.</p>;
+          })()}
+        </>
+      )}
+      <h2 style={{ fontSize: "1rem" }}>{p.userId ? "Seus lançamentos com esta pessoa" : "Histórico"}</h2>
       {hist.length ? <div className="lista">{hist.map((l) => <ItemLancamento key={l.id} l={l} dados={dados} abrir={abrir} mostrarData />)}</div> : <p className="muted" style={{ margin: 0 }}>Nenhum lançamento com esta pessoa.</p>}
     </Folha>
   );

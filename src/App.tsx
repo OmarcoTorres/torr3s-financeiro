@@ -4,9 +4,9 @@ import { ArrowLeftRight, BarChart3, Cloud, CloudOff, CreditCard, RefreshCw, Layo
 import type { Session } from "@supabase/supabase-js";
 import { db, removerExemplos, type Lancamento, type Perfil } from "./db";
 import { supabase, supabaseConfigurado } from "./lib/supabase";
-import { iniciarSync, sairDaConta, sincronizarAgora, useSync } from "./lib/sync";
+import { aceitarConviteGrupo, convitePendente, iniciarSync, limparConvitePendente, sairDaConta, sincronizarAgora, useSync } from "./lib/sync";
 import { Login } from "./components/Login";
-import { Folha, useConfig, useDados, marcarProgresso } from "./components/ui";
+import { Folha, useAviso, useConfig, useDados, marcarProgresso } from "./components/ui";
 import { GuiaInstalacao } from "./components/Instalar";
 import { instalado } from "./lib/push";
 import { LancamentoForm, type Rascunho } from "./components/LancamentoForm";
@@ -126,6 +126,16 @@ function Painel({ email, userId }: { email: string; userId: string }) {
     setGuiaAberto(true);
   };
 
+  // Convite pelo link: entra no grupo assim que o perfil existir (depois das boas-vindas).
+  const aviso = useAviso();
+  useEffect(() => {
+    const codigo = convitePendente();
+    if (!perfil || !codigo) return;
+    aceitarConviteGrupo(codigo)
+      .then((nome) => aviso(`Bem-vindo! Você e ${nome.split(" ")[0]} agora estão no mesmo grupo.`))
+      .catch((e) => { limparConvitePendente(); aviso(String((e as Error).message)); });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [perfil]);
   // Versões antigas criavam lançamentos de exemplo: limpa ao abrir, o app começa sempre zerado.
   useEffect(() => { removerExemplos().catch(() => undefined); }, []);
   useEffect(() => { history.replaceState(null, "", `#${aba}`); window.scrollTo(0, 0); if (aba === "relatorios") marcarProgresso("relatorio"); }, [aba]);

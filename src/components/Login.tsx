@@ -1,11 +1,21 @@
-import { useState } from "react";
-import { Eye, EyeOff, Lock, Mail } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Eye, EyeOff, Lock, Mail, Users } from "lucide-react";
 import { erroAuth, supabase } from "../lib/supabase";
+import { convitePendente } from "../lib/sync";
 
 type Modo = "entrar" | "criar" | "recuperar" | "nova-senha";
 
 export function Login({ modoInicial = "entrar", aoDefinirSenha }: { modoInicial?: Modo; aoDefinirSenha?: () => void }) {
-  const [modo, setModo] = useState<Modo>(modoInicial);
+  const pendente = convitePendente();
+  const [modo, setModo] = useState<Modo>(pendente && modoInicial === "entrar" ? "criar" : modoInicial);
+  const [quemConvidou, setQuemConvidou] = useState<string | null>(null);
+  useEffect(() => {
+    if (!pendente) return;
+    supabase.rpc("ver_convite", { p_codigo: pendente }).then(({ data }) => {
+      const r = (data as { nome: string; valido: boolean }[] | null)?.[0];
+      if (r?.valido) setQuemConvidou(r.nome.split(" ")[0]);
+    });
+  }, [pendente]);
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [senha2, setSenha2] = useState("");
@@ -58,6 +68,9 @@ export function Login({ modoInicial = "entrar", aoDefinirSenha }: { modoInicial?
     <div className="boasvindas">
       <div className="topo-bv"><img src="/icon.svg" alt="" /><b>Invest+</b></div>
       <form className="corpo" onSubmit={enviar} noValidate>
+        {quemConvidou && modo !== "nova-senha" && (
+          <div className="aviso dica"><Users size={18} /><div><b>{quemConvidou} convidou você para o grupo dele no Invest+.</b> Crie sua conta (ou entre, se já tiver) e vocês ficam conectados automaticamente.</div></div>
+        )}
         <h1>{titulo}</h1>
         <p className="lead">{sub}</p>
         <div className="card" style={{ gap: 12 }}>
