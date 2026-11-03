@@ -1,16 +1,17 @@
 import { Fragment, useEffect, useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ArrowLeftRight, BarChart3, Cloud, CloudOff, CreditCard, RefreshCw, LayoutGrid, MessageSquareText, MoreHorizontal, Plus, ScanLine, Settings, Target, Users } from "lucide-react";
+import { ArrowLeftRight, BarChart3, CreditCard, LayoutGrid, MessageSquareText, MoreHorizontal, Plus, ScanLine, Settings, Target, Users } from "lucide-react";
 import type { Session } from "@supabase/supabase-js";
 import { db, removerExemplos, type Lancamento, type Perfil } from "./db";
 import { supabase, supabaseConfigurado } from "./lib/supabase";
-import { aceitarConviteGrupo, convitePendente, iniciarSync, limparConvitePendente, sairDaConta, sincronizarAgora, useSync } from "./lib/sync";
+import { aceitarConviteGrupo, convitePendente, iniciarSync, limparConvitePendente, sairDaConta } from "./lib/sync";
 import { Login } from "./components/Login";
 import { Folha, useAviso, useConfig, useDados, marcarProgresso } from "./components/ui";
 import { GuiaInstalacao } from "./components/Instalar";
 import { instalado } from "./lib/push";
 import { LancamentoForm, type Rascunho } from "./components/LancamentoForm";
 import { LerConta } from "./components/LerConta";
+import { BannerVersao, IndicadorSync } from "./components/Nuvem";
 import { Assistente } from "./components/Assistente";
 import { BoasVindas } from "./components/BoasVindas";
 import { Tour, type PassoTour } from "./components/Tour";
@@ -212,6 +213,7 @@ function Painel({ email, userId }: { email: string; userId: string }) {
 
       {aba !== "relatorios" && aba !== "mais" && <button type="button" className="fab" data-tour="lancar" aria-label="Nova transação" onClick={novo}><Plus /><span>Lançar</span></button>}
 
+      <BannerVersao />
       <LancamentoForm rascunho={rascunho} fotoNova={fotoNova} dados={dados} fechar={() => { setRascunho(null); setFotoNova(undefined); }} />
       <LerConta aberta={lerAberto} fechar={() => setLerAberto(false)} dados={dados} aoLer={(r, foto) => { setLerAberto(false); setFotoNova(foto); setRascunho(r); }} />
       <Assistente aberta={perguntaAberta} fechar={() => setPerguntaAberta(false)} dados={dados} />
@@ -230,14 +232,3 @@ function usePerfil(): [Perfil | null, boolean] {
   return [r?.p ?? null, r !== undefined];
 }
 
-function IndicadorSync() {
-  const s = useSync();
-  const rotulo = { desligado: "Sincronização desligada", sincronizando: "Sincronizando…", ok: "Tudo salvo na nuvem", offline: "Sem internet: salvo no aparelho, envia quando voltar", erro: `Erro ao sincronizar: ${s.erro ?? ""}` }[s.status];
-  const I = s.status === "sincronizando" ? RefreshCw : s.status === "ok" ? Cloud : CloudOff;
-  const cor = s.status === "erro" ? "var(--neg)" : s.status === "offline" ? "var(--warn)" : s.status === "ok" ? "var(--pos)" : "var(--muted)";
-  return (
-    <button type="button" className="btn icone" title={rotulo} aria-label={rotulo} onClick={() => void sincronizarAgora()} style={{ color: cor }}>
-      <I className={s.status === "sincronizando" ? "girando" : undefined} />
-    </button>
-  );
-}

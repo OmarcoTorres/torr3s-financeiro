@@ -59,7 +59,7 @@ function paraLocal(tabela: string, linha: Record<string, unknown>) {
 
 // ---------- Estado observável (para o indicador na tela) ----------
 export type StatusSync = "desligado" | "sincronizando" | "ok" | "offline" | "erro";
-let estado: { status: StatusSync; erro?: string; espacoId?: string; pendentes: number } = { status: "desligado", pendentes: 0 };
+let estado: { status: StatusSync; erro?: string; espacoId?: string; pendentes: number; recusados?: number; ultimaSync?: number } = { status: "desligado", pendentes: 0 };
 const ouvintes = new Set<() => void>();
 function mudar(p: Partial<typeof estado>) { estado = { ...estado, ...p }; ouvintes.forEach((f) => f()); }
 export const useSync = () => useSyncExternalStore((f) => { ouvintes.add(f); return () => ouvintes.delete(f); }, () => estado);
@@ -306,8 +306,8 @@ async function ciclo() {
     await receberCompartilhados(sessao.userId);
     if (minha !== rodada) return;
     const recusados = (await db.fila.toArray()).filter((i) => i.erro);
-    if (recusados.length) mudar({ status: "erro", erro: `${recusados.length} ${recusados.length === 1 ? "item não subiu" : "itens não subiram"} (${recusados[0].erro})` });
-    else mudar({ status: "ok", erro: undefined });
+    if (recusados.length) mudar({ status: "erro", recusados: recusados.length, erro: `${recusados.length} ${recusados.length === 1 ? "item não subiu" : "itens não subiram"} (${recusados[0].erro})` });
+    else mudar({ status: "ok", erro: undefined, recusados: 0, ultimaSync: Date.now() });
   } catch (e) {
     console.error("sincronização", e);
     if (minha === rodada) mudar({ status: navigator.onLine && !ehFalhaDeRede(e) ? "erro" : "offline", erro: textoErro(e) });
@@ -316,6 +316,21 @@ async function ciclo() {
   }
 }
 export const sincronizarAgora = () => ciclo();
+
+/** Texto para o usuário (sem jargão de banco); o erro técnico fica só em "Detalhes". */
+export function explicarSync(s: typeof estado): { titulo: string; texto: string; tom: "ok" | "warn" | "neg" | "neutro" } {
+  const n = s.pendentes;
+  const mudancas = `${n} ${n === 1 ? "mudança" : "mudanças"}`;
+  if (s.status === "ok") return { titulo: "Tudo salvo na nuvem", texto: "Seus dados estão iguais em todos os aparelhos.", tom: "ok" };
+  if (s.status === "sincronizando") return { titulo: "Sincronizando…", texto: n ? `Enviando ${mudancas} deste aparelho.` : "Buscando novidades dos outros aparelhos.", tom: "neutro" };
+  if (s.status === "offline") return { titulo: "Sem internet agora", texto: n ? `${mudancas} guardada${n === 1 ? "" : "s"} neste aparelho. Sobe${n === 1 ? "" : "m"} sozinha${n === 1 ? "" : "s"} quando a conexão voltar.` : "Pode continuar usando: o que você lançar sobe quando a conexão voltar.", tom: "warn" };
+  if (s.status === "erro") {
+    if (/jwt|token|401|PGRST301/i.test(s.erro ?? "")) return { titulo: "Sua sessão expirou", texto: "Saia e entre de novo na sua conta. Nada do que está no aparelho se perde.", tom: "neg" };
+    if (s.recusados) return { titulo: `${s.recusados} ${s.recusados === 1 ? "item ainda não subiu" : "itens ainda não subiram"}`, texto: "Continuam guardados neste aparelho e o app tenta de novo sozinho. O resto já está salvo na nuvem.", tom: "neg" };
+    return { titulo: "Não deu para sincronizar", texto: "O app tenta de novo sozinho em alguns segundos. Seus dados continuam guardados neste aparelho.", tom: "neg" };
+  }
+  return { titulo: "Sincronização desligada", texto: "Entre na sua conta para guardar os dados na nuvem.", tom: "neutro" };
+}
 
 const TABELAS_DADOS = [...NOMES, "fotos"];
 async function limparDadosLocais() {

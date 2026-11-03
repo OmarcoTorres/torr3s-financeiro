@@ -1,22 +1,12 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { registerSW } from "virtual:pwa-register";
+// Atualização do app: baixa em segundo plano e avisa quando a versão nova está pronta.
+import "./lib/versao";
 import App from "./App";
 import { AvisoProvider } from "./components/ui";
 import "./styles.css";
 import { capturarConviteDaUrl } from "./lib/sync";
 
-// Aba ou app aberto por horas também recebe versão nova: confere a cada 30 min e ao voltar para o app
-// (com autoUpdate, achou versão nova, a página recarrega sozinha).
-registerSW({
-  immediate: true,
-  onRegisteredSW(_url, reg) {
-    if (!reg) return;
-    const conferir = () => { if (navigator.onLine) void reg.update().catch(() => undefined); };
-    setInterval(conferir, 30 * 60_000);
-    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") conferir(); });
-  },
-});
 // Link de convite (?convite=CODIGO): guarda o código até a pessoa terminar o cadastro.
 capturarConviteDaUrl();
 // Android/Chrome: guarda o convite de instalação para o botão "Instalar app" do guia.

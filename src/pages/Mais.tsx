@@ -4,6 +4,7 @@ import { db, ehCartao, novoId, type Categoria, type Conta, type Objetivo, type P
 import { OBJETIVOS } from "../lib/perfil";
 import { supabase } from "../lib/supabase";
 import { sairDaConta, trocarEspaco, useSync } from "../lib/sync";
+import { StatusNuvem } from "../components/Nuvem";
 import { CompartilharConta, SeuGrupo } from "../components/Grupo";
 import { mesAtual, resumoMes } from "../lib/calc";
 import { dataCurta, dinheiro, lerValor, mesExtenso, numeroBR } from "../lib/format";
@@ -366,11 +367,8 @@ function ContaECompartilhar({ email, userId }: { email: string; userId: string }
       <div className="bloco">
         <span className="rotulo">Sua conta</span>
         <b>{email}</b>
-        <span className="muted" style={{ fontSize: ".84rem" }}>
-          {sync.status === "ok" ? "Tudo salvo na nuvem." : sync.status === "offline" ? "Sem internet: as mudanças ficam no aparelho e sobem quando voltar." : sync.status === "erro" ? `Erro ao sincronizar: ${sync.erro}` : "Sincronizando…"}
-          {sync.pendentes > 0 ? ` ${sync.pendentes} mudança(s) para enviar.` : ""}
-        </span>
       </div>
+      <StatusNuvem />
 
       <SeuGrupo />
 
