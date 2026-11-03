@@ -262,8 +262,15 @@ tfoot td { font-weight: 700; border-bottom: 0; }
 .msg { padding: 11px 14px; border-radius: 18px; max-width: 88%; white-space: pre-wrap; font-size: .92rem; }
 .msg.u { background: var(--accent); color: var(--accent-ink); justify-self: end; border-bottom-right-radius: 6px; }
 .msg.a { background: var(--surface-2); justify-self: start; border-bottom-left-radius: 6px; }
+.dia-chat { justify-self: center; font-size: .72rem; font-weight: 700; color: var(--muted); background: var(--surface-2); padding: 3px 10px; border-radius: 999px; letter-spacing: .04em; }
+.aviso-chat { justify-self: start; max-width: 92%; background: var(--surface-2); border-radius: 18px; border-bottom-left-radius: 6px; padding: 12px 14px; display: grid; gap: 4px; font-size: .92rem; border-left: 3px solid transparent; }
+.aviso-chat.novo { border-left-color: var(--accent); background: var(--accent-soft); }
+.badge-icone { position: absolute; top: -4px; right: -4px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--neg); color: #fff; font-size: .68rem; font-weight: 700; display: grid; place-items: center; border: 2px solid var(--bg); }
 .proposta { border-radius: 18px; padding: 14px; display: grid; gap: 8px; background: var(--accent-soft); }
 .chat-entrada { display: grid; grid-template-columns: 1fr auto; gap: 8px; position: sticky; bottom: calc(-18px - env(safe-area-inset-bottom, 0px)); background: var(--surface); padding-block: 8px; }
+.chat-entrada input { border: 1.5px solid transparent; background: var(--surface-2); border-radius: 14px; padding: 12px 14px; font-size: 16px; min-width: 0; min-height: 48px; }
+.chat-entrada input:focus { border-color: var(--accent); outline: none; background: var(--surface); box-shadow: 0 0 0 4px var(--accent-soft); }
+.btn.pri.icone { background: var(--accent); color: var(--accent-ink); box-shadow: none; }
 .sugestoes { display: flex; gap: 6px; flex-wrap: wrap; }
 .sugestoes button { border: 0; background: var(--surface-2); border-radius: 999px; padding: 8px 12px; font-size: .82rem; }
 

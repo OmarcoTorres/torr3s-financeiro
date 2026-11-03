@@ -23,6 +23,9 @@ export interface Aviso { title: string; body: string; url?: string; tag?: string
 /** Envia para todos os aparelhos do usuário; remove inscrições que o navegador já cancelou. */
 export async function enviarParaUsuario(admin: ReturnType<typeof supabaseAdmin>, userId: string, avisos: Aviso[]) {
   configurar();
+  // Guarda no histórico (aparece dentro do app, no assistente), mesmo se o push não chegar.
+  const { error: erroHist } = await admin.from("avisos_historico").insert(avisos.map((a) => ({ user_id: userId, titulo: a.title, corpo: a.body, url: a.url ?? null, tag: a.tag ?? null })));
+  if (erroHist) console.error("histórico de avisos", erroHist.message);
   const { data: assinaturas, error } = await admin.from("push_assinaturas").select("*").eq("user_id", userId);
   if (error) throw error;
   let enviados = 0;

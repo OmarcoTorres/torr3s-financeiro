@@ -22,6 +22,7 @@ import { Lancamentos } from "./pages/Lancamentos";
 import { Relatorios } from "./pages/Relatorios";
 import { Pessoas } from "./pages/Pessoas";
 import { Mais, type Secao } from "./pages/Mais";
+import { useAvisosNaoLidos } from "./lib/avisos";
 
 type Aba = "inicio" | "transacoes" | "cartoes" | "metas" | "relatorios" | "pessoas" | "mais";
 /** [aba, nome, ícone, onde aparece]: "ambos", só no computador (barra lateral) ou só no celular (barra inferior). */
@@ -108,7 +109,8 @@ function Painel({ email, userId }: { email: string; userId: string }) {
   const [tourPendente, setTourPendente] = useConfig("tourPendente", false);
 
   const [aba, setAba] = useState<Aba>(() => {
-    const h = (location.hash.slice(1) === "lancamentos" ? "transacoes" : location.hash.slice(1)) as Aba;
+    const bruto = location.hash.slice(1);
+    const h = (({ lancamentos: "transacoes", avisos: "inicio" } as Record<string, string>)[bruto] ?? bruto) as Aba;
     return ABAS.some(([k]) => k === h) ? h : "inicio";
   });
   const [secao, setSecao] = useState<Secao>("");
@@ -116,6 +118,14 @@ function Painel({ email, userId }: { email: string; userId: string }) {
   const [fotoNova, setFotoNova] = useState<Blob>();
   const [lerAberto, setLerAberto] = useState(false);
   const [perguntaAberta, setPerguntaAberta] = useState(false);
+  const naoLidos = useAvisosNaoLidos();
+  // Tocar numa notificação abre o app em #avisos: vai para o histórico dentro do assistente.
+  useEffect(() => {
+    const ver = () => { if (location.hash === "#avisos") { setAba("inicio"); setPerguntaAberta(true); } };
+    ver();
+    window.addEventListener("hashchange", ver);
+    return () => window.removeEventListener("hashchange", ver);
+  }, []);
   const [tour, setTour] = useState(false);
   const [guiaAberto, setGuiaAberto] = useState(false);
   const tourAgendado = useRef(false);
@@ -185,7 +195,9 @@ function Painel({ email, userId }: { email: string; userId: string }) {
           <div className="acoes">
             <IndicadorSync />
             <button type="button" className="btn icone" data-tour="ler-conta" aria-label="Ler conta pela foto" title="Ler conta pela foto" onClick={() => setLerAberto(true)}><ScanLine /></button>
-            <button type="button" className="btn icone" aria-label="Perguntar sobre os números" title="Perguntar sobre os números" onClick={() => setPerguntaAberta(true)}><MessageSquareText /></button>
+            <button type="button" className="btn icone" style={{ position: "relative" }} aria-label={naoLidos ? `Assistente: ${naoLidos} aviso(s) novo(s)` : "Assistente"} title="Assistente e avisos" onClick={() => setPerguntaAberta(true)}>
+              <MessageSquareText />{naoLidos > 0 && <span className="badge-icone">{naoLidos > 9 ? "9+" : naoLidos}</span>}
+            </button>
           </div>
         </header>
 

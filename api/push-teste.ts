@@ -9,7 +9,7 @@ export async function POST(req: Request) {
     const n = await enviarParaUsuario(supabaseAdmin(), usuario.id, [{
       title: "Invest+ · notificações ativas",
       body: "Você vai receber aqui os avisos de vencimentos, faturas e metas.",
-      url: "/#inicio", tag: "teste",
+      url: "/#avisos", tag: "teste",
     }]);
     if (!n) return resposta(404, { erro: "Nenhum aparelho com notificações ativas nesta conta." });
     return resposta(200, { enviados: n });
