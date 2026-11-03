@@ -5,7 +5,7 @@ import { createClient } from "@supabase/supabase-js";
  * quem protege os dados são as regras de RLS do banco. Pode ser sobrescrita por variáveis da Vercel.
  */
 export const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://wvbpwbhzyhfqrymftwqj.supabase.co";
-export const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
+export const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "sb_publishable_YYBlJg58aBBKRWn3FQUbpg_4QbJK_lv";
 
 export const supabaseConfigurado = !!SUPABASE_KEY;
 

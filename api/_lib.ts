@@ -10,7 +10,7 @@ const LIMITE_POR_MINUTO = 8;
 const acessos = new Map<string, number[]>();
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || "https://wvbpwbhzyhfqrymftwqj.supabase.co";
-const SUPABASE_KEY = process.env.VITE_SUPABASE_ANON_KEY || "";
+const SUPABASE_KEY = process.env.VITE_SUPABASE_ANON_KEY || "sb_publishable_YYBlJg58aBBKRWn3FQUbpg_4QbJK_lv";
 
 /** Só usuários logados no Invest+ usam a IA: confere o token da sessão no Supabase. */
 async function usuarioLogado(req: Request) {

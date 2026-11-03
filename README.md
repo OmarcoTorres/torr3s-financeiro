@@ -2,7 +2,8 @@
 
 Dashboard financeiro para você ou para a sua empresa: transações, cartões de crédito, metas, lançamentos, pessoas, fechamento mensal, relatórios editáveis, leitura de conta por foto e um mini assistente.
 
-- **Dados**: ficam só no aparelho (IndexedDB). Exporte backups em *Mais › Backup e dados*.
+- **Dados**: Supabase (Postgres + RLS por espaço) com login por e-mail e senha. O app grava primeiro no aparelho (IndexedDB) e sincroniza com a nuvem; funciona sem internet. Esquema em `supabase/migrations/0001_inicial.sql`.
+- **Compartilhar**: cada usuário tem um espaço pessoal; o dono gera um código em *Ajustes › Conta e compartilhamento* e a outra pessoa entra com ele.
 - **IA** (leitura de conta e assistente): funções em `api/` rodando na Vercel com o Claude. Exige `ANTHROPIC_API_KEY` nas variáveis de ambiente da Vercel.
 - **Primeiro acesso**: boas-vindas em 6 etapas (nome, idade, uso pessoal ou empresa, objetivo e meta, saldo inicial) e tour guiado de 8 passos; depois, uma lista de primeiros passos no início.
 - **iPhone**: abra o endereço no Safari › Compartilhar › *Adicionar à Tela de Início*.
