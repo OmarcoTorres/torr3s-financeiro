@@ -24,10 +24,10 @@ const TABELAS: Record<string, { campos: Campo[]; chaveLocal?: string }> = {
 const NOMES = Object.keys(TABELAS);
 /** Colunas obrigatórias no servidor: um campo vazio no aparelho não pode travar o envio. */
 const PADROES: Record<string, Record<string, unknown>> = {
-  contas: { saldo_inicial: 0, cor: "#5b5bd6", tipo: "conta" },
+  contas: { saldo_inicial: 0, cor: "#5b5bd6", tipo: "conta", compartilhada: false },
   categorias: { cor: "#8b8fa3", icone: "tag" },
   pessoas: { tipo: "outro" },
-  lancamentos: { descricao: "(sem descrição)", status: "pago" },
+  lancamentos: { descricao: "(sem descrição)", status: "pago", compartilhado: false },
   metas: { guardado: 0, icone: "piggy", cor: "#5b5bd6", aportes: [] },
   fechamentos: { resumo: {} },
   relatorios: { config: {} },
