@@ -33,7 +33,7 @@ Use somente nomes de categorias, contas e pessoas que existem nos dados. Sem mar
 type Hist = { papel: "user" | "assistant"; texto: string };
 
 export async function POST(req: Request) {
-  const bloqueio = barrar(req);
+  const bloqueio = await barrar(req);
   if (bloqueio) return bloqueio;
 
   const corpo = await req.json().catch(() => null) as { pergunta?: string; historico?: Hist[]; dados?: unknown } | null;

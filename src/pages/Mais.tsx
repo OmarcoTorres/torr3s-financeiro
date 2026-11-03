@@ -1,24 +1,27 @@
 import { useEffect, useState } from "react";
-import { CalendarCheck, ChevronRight, CreditCard, Database, GraduationCap, Lock, LockOpen, Palette, Tags, UserRound, Users, Wallet } from "lucide-react";
+import { CalendarCheck, ChevronRight, Copy, CreditCard, LogOut, Share2, Database, GraduationCap, Lock, LockOpen, Palette, Tags, UserRound, Users, Wallet } from "lucide-react";
 import { db, ehCartao, novoId, type Categoria, type Conta, type Objetivo, type Perfil } from "../db";
 import { OBJETIVOS } from "../lib/perfil";
+import { supabase } from "../lib/supabase";
+import { entrarComCodigo, sairDaConta, trocarEspaco, useSync } from "../lib/sync";
 import { mesAtual, resumoMes, somarMeses } from "../lib/calc";
 import { dataCurta, dinheiro, lerValor, mesExtenso, numeroBR } from "../lib/format";
 import { apagarTudo, exportarBackup, importarBackup } from "../lib/backup";
 import { BotaoConfirmar, CORES, Campo, Folha, ICONES, IconeCategoria, Seg, marcarProgresso, useAviso, useConfig, type DadosApp } from "../components/ui";
 
-export type Secao = "" | "perfil" | "fechamento" | "categorias" | "contas" | "aparencia" | "backup";
+export type Secao = "" | "conta" | "perfil" | "fechamento" | "categorias" | "contas" | "aparencia" | "backup";
 
-export function Mais({ dados, secao, setSecao, refazerTour, irAba }: { dados: DadosApp; secao: Secao; setSecao: (s: Secao) => void; refazerTour: () => void; irAba: (a: "cartoes" | "pessoas") => void }) {
+export function Mais({ dados, email, userId, secao, setSecao, refazerTour, irAba }: { dados: DadosApp; email: string; userId: string; secao: Secao; setSecao: (s: Secao) => void; refazerTour: () => void; irAba: (a: "cartoes" | "pessoas") => void }) {
   const fechar = () => setSecao("");
   useEffect(() => { if (secao === "contas") marcarProgresso("contas"); }, [secao]);
   const itens: [Secao, typeof Wallet, string, string][] = [
+    ["conta", Share2, "Conta e compartilhamento", email],
     ["perfil", UserRound, "Seu perfil e objetivo", "Nome, idade, objetivo e meta do mês"],
     ["fechamento", CalendarCheck, "Fechamento mensal", "Saldo do mês, pendências e fechar/reabrir"],
     ["categorias", Tags, "Categorias", "Nomes, cores, ícones e subcategorias"],
     ["contas", Wallet, "Contas e carteiras", "Bancos, caixa e saldo inicial"],
     ["aparencia", Palette, "Aparência e empresa", "Nome, logo, cor e tema"],
-    ["backup", Database, "Backup e dados", "Exportar, importar e apagar"],
+    ["backup", Database, "Backup em arquivo", "Exportar e importar uma cópia"],
   ];
   return (
     <>
@@ -40,6 +43,7 @@ export function Mais({ dados, secao, setSecao, refazerTour, irAba }: { dados: Da
         <p className="muted" style={{ fontSize: ".9rem" }}>Reveja o tour guiado que mostra onde fica cada coisa.</p>
         <div><button type="button" className="btn" onClick={refazerTour}><GraduationCap />Refazer o tour</button></div>
       </section>
+      <Folha titulo="Conta e compartilhamento" aberta={secao === "conta"} fechar={fechar}><ContaECompartilhar email={email} userId={userId} /></Folha>
       <Folha titulo="Seu perfil e objetivo" aberta={secao === "perfil"} fechar={fechar}><EditarPerfil fechar={fechar} /></Folha>
       <Folha titulo="Fechamento mensal" aberta={secao === "fechamento"} fechar={fechar}><Fechamento dados={dados} /></Folha>
       <Folha titulo="Categorias" aberta={secao === "categorias"} fechar={fechar}><Categorias dados={dados} /></Folha>
@@ -272,7 +276,7 @@ function Backup() {
   const [erro, setErro] = useState("");
   return (
     <>
-      <p className="muted" style={{ margin: 0 }}>Tudo fica guardado só neste aparelho. Se o navegador for limpo ou o celular trocado, os dados somem; por isso, exporte um backup com frequência e guarde o arquivo (iCloud Drive, Google Drive, e-mail).</p>
+      <p className="muted" style={{ margin: 0 }}>Seus dados ficam salvos na sua conta e sincronizados entre os aparelhos. O backup em arquivo é uma cópia extra, para guardar onde quiser.</p>
       <button type="button" className="btn pri" onClick={async () => { await exportarBackup(); await marcarProgresso("backup"); aviso("Backup exportado."); }}>Exportar backup (arquivo)</button>
       <label className="btn">Importar backup
         <input type="file" accept="application/json,.json" hidden onChange={async (e) => {
@@ -328,6 +332,91 @@ function EditarPerfil({ fechar }: { fechar: () => void }) {
       {meta && <Campo rotulo={meta.rotulo}><input id="pf-meta" inputMode="decimal" placeholder="R$ 0,00" value={metaTxt} onChange={(e) => setMetaTxt(e.target.value)} /></Campo>}
       <p className="muted" style={{ fontSize: ".82rem" }}>Uso: {perfil.uso === "empresa" ? "empresa" : "pessoal"}. Para trocar, apague os dados em Backup e dados e comece de novo.</p>
       <button type="button" className="btn pri" onClick={salvar}>Salvar</button>
+    </>
+  );
+}
+
+type EspacoInfo = { id: string; nome: string; papel: "dono" | "membro"; membros: { user_id: string; papel: string; nome: string }[] };
+
+function ContaECompartilhar({ email, userId }: { email: string; userId: string }) {
+  const aviso = useAviso();
+  const sync = useSync();
+  const [espacos, setEspacos] = useState<EspacoInfo[] | null>(null);
+  const [codigo, setCodigo] = useState("");
+  const [gerado, setGerado] = useState("");
+  const [trabalhando, setTrabalhando] = useState(false);
+  const [erro, setErro] = useState("");
+
+  const carregar = () => supabase.rpc("meus_espacos").then(({ data, error }) => { if (error) setErro(error.message); else setEspacos((data ?? []) as EspacoInfo[]); });
+  useEffect(() => { void carregar(); }, [sync.espacoId]);
+  const atual = espacos?.find((e) => e.id === sync.espacoId);
+
+  async function rodar(fn: () => Promise<unknown>, ok: string) {
+    setTrabalhando(true); setErro("");
+    try { await fn(); aviso(ok); await carregar(); } catch (e) { setErro(String((e as Error)?.message ?? e)); } finally { setTrabalhando(false); }
+  }
+
+  async function convidar() {
+    if (!atual) return;
+    const { data, error } = await supabase.rpc("gerar_convite", { p_espaco: atual.id });
+    if (error) throw error;
+    setGerado(String(data));
+  }
+  async function copiar() {
+    try { await navigator.clipboard.writeText(gerado); aviso("Código copiado."); } catch { aviso("Selecione o código e copie."); }
+  }
+
+  return (
+    <>
+      <div className="bloco">
+        <span className="rotulo">Sua conta</span>
+        <b>{email}</b>
+        <span className="muted" style={{ fontSize: ".84rem" }}>
+          {sync.status === "ok" ? "Tudo salvo na nuvem." : sync.status === "offline" ? "Sem internet: as mudanças ficam no aparelho e sobem quando voltar." : sync.status === "erro" ? `Erro ao sincronizar: ${sync.erro}` : "Sincronizando…"}
+          {sync.pendentes > 0 ? ` ${sync.pendentes} mudança(s) para enviar.` : ""}
+        </span>
+      </div>
+
+      <h2 style={{ fontSize: "1rem" }}>Espaços</h2>
+      <p className="muted" style={{ fontSize: ".86rem", marginTop: -8 }}>Cada espaço é um financeiro separado. Para dividir as contas com alguém, convide essa pessoa para o seu espaço.</p>
+      {espacos === null ? <span className="carregando" aria-label="Carregando" /> : (
+        <div className="lista">
+          {espacos.map((e) => (
+            <div key={e.id} className="cab" style={{ padding: "10px 0", borderBottom: "1px solid var(--line)" }}>
+              <div style={{ minWidth: 0 }}>
+                <b>{e.nome}</b> {e.id === sync.espacoId && <span className="chip">em uso</span>}
+                <div className="muted" style={{ fontSize: ".8rem" }}>{e.membros.map((m) => m.user_id === userId ? "você" : m.nome).join(", ")}</div>
+              </div>
+              {e.id !== sync.espacoId && <button type="button" className="btn suave" disabled={trabalhando} onClick={() => rodar(() => trocarEspaco(userId, e.id), `Usando ${e.nome}.`)}>Usar</button>}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {atual?.papel === "dono" && (
+        <div className="bloco">
+          <b>Convidar alguém para “{atual.nome}”</b>
+          <span className="muted" style={{ fontSize: ".84rem" }}>Gere um código e envie para a pessoa. Ela cria a conta dela, vai em Ajustes › Conta e compartilhamento e digita o código. O código vale 7 dias e uma vez.</span>
+          {gerado ? (
+            <div className="linha-botoes" style={{ alignItems: "center" }}>
+              <b className="num" style={{ fontFamily: "var(--display)", fontSize: "1.6rem", letterSpacing: ".12em", userSelect: "all" }}>{gerado}</b>
+              <button type="button" className="btn" onClick={copiar}><Copy />Copiar</button>
+            </div>
+          ) : <div><button type="button" className="btn pri" disabled={trabalhando} onClick={() => rodar(convidar, "Código gerado.")}>Gerar código de convite</button></div>}
+        </div>
+      )}
+
+      <div className="bloco">
+        <b>Recebeu um código?</b>
+        <div className="busca">
+          <input className="entrada" id="cv-codigo" placeholder="Ex.: 4F9A2C1B" value={codigo} onChange={(e) => setCodigo(e.target.value.toUpperCase())} maxLength={12} aria-label="Código de convite" />
+          <button type="button" className="btn pri" disabled={trabalhando || codigo.trim().length < 6} onClick={() => rodar(() => entrarComCodigo(userId, codigo), "Você entrou no espaço.")}>Entrar</button>
+        </div>
+        <span className="muted" style={{ fontSize: ".8rem" }}>Ao entrar, este aparelho passa a mostrar o espaço compartilhado. O seu espaço pessoal continua na lista acima.</span>
+      </div>
+
+      {erro && <div className="aviso neg" role="alert">{erro}</div>}
+      <BotaoConfirmar className="btn perigo" confirmar="Toque de novo para sair" onConfirm={() => void sairDaConta()}><LogOut />Sair da conta</BotaoConfirmar>
     </>
   );
 }

@@ -1,7 +1,11 @@
 import { Fragment, useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ArrowLeftRight, BarChart3, CreditCard, LayoutGrid, MessageSquareText, MoreHorizontal, Plus, ScanLine, Settings, Target, Users } from "lucide-react";
+import { ArrowLeftRight, BarChart3, Cloud, CloudOff, CreditCard, RefreshCw, LayoutGrid, MessageSquareText, MoreHorizontal, Plus, ScanLine, Settings, Target, Users } from "lucide-react";
+import type { Session } from "@supabase/supabase-js";
 import { db, removerExemplos, type Lancamento, type Perfil } from "./db";
+import { supabase, supabaseConfigurado } from "./lib/supabase";
+import { iniciarSync, sairDaConta, sincronizarAgora, useSync } from "./lib/sync";
+import { Login } from "./components/Login";
 import { useConfig, useDados, marcarProgresso } from "./components/ui";
 import { LancamentoForm, type Rascunho } from "./components/LancamentoForm";
 import { LerConta } from "./components/LerConta";
@@ -48,7 +52,49 @@ function corTexto(hex: string) {
   return 0.2126 * r + 0.7152 * g + 0.0722 * b > 160 ? "#1d2142" : "#ffffff";
 }
 
+/** Porteiro: sem login mostra a tela de entrar; com login liga a sincronização e abre o app. */
 export default function App() {
+  const [sessao, setSessao] = useState<Session | null | undefined>(undefined);
+  const [recuperando, setRecuperando] = useState(false);
+  const [syncPronto, setSyncPronto] = useState<string | null>(null);
+  const [erroSync, setErroSync] = useState("");
+
+  useEffect(() => {
+    if (!supabaseConfigurado) { setSessao(null); return; }
+    supabase.auth.getSession().then(({ data }) => setSessao(data.session));
+    const { data } = supabase.auth.onAuthStateChange((ev, s) => {
+      if (ev === "PASSWORD_RECOVERY") setRecuperando(true);
+      setSessao(s);
+    });
+    return () => data.subscription.unsubscribe();
+  }, []);
+
+  const userId = sessao?.user.id;
+  useEffect(() => {
+    if (!userId || syncPronto === userId) return;
+    setErroSync("");
+    iniciarSync(userId).then(() => setSyncPronto(userId)).catch((e) => setErroSync(String(e?.message ?? e)));
+  }, [userId, syncPronto]);
+
+  if (!supabaseConfigurado) return <div className="conteudo"><div className="aviso neg">O login ainda não foi configurado neste endereço (falta a chave pública do Supabase).</div></div>;
+  if (sessao === undefined) return <Carregando />;
+  if (recuperando) return <Login modoInicial="nova-senha" aoDefinirSenha={() => setRecuperando(false)} />;
+  if (!sessao) return <Login />;
+  if (erroSync) return (
+    <div className="conteudo" style={{ maxWidth: 560 }}>
+      <div className="aviso neg"><div>Não foi possível carregar sua conta agora ({erroSync}).
+        <div className="linha-botoes"><button type="button" className="btn" onClick={() => setSyncPronto(null)}>Tentar de novo</button><button type="button" className="btn fantasma" onClick={() => sairDaConta()}>Sair</button></div></div></div>
+    </div>
+  );
+  if (syncPronto !== userId) return <Carregando texto="Sincronizando sua conta…" />;
+  return <Painel email={sessao.user.email ?? ""} userId={sessao.user.id} />;
+}
+
+function Carregando({ texto }: { texto?: string }) {
+  return <div className="conteudo" style={{ justifyItems: "center", minHeight: "60vh", alignContent: "center", gap: 12 }}><span className="carregando" aria-label="Carregando" />{texto && <span className="muted">{texto}</span>}</div>;
+}
+
+function Painel({ email, userId }: { email: string; userId: string }) {
   const dados = useDados();
   const [perfil, perfilCarregado] = usePerfil();
   const [empresa] = useConfig("empresa", "");
@@ -89,7 +135,7 @@ export default function App() {
     setAba("mais"); setSecao(d);
   };
 
-  if (!dados.pronto || !perfilCarregado) return <div className="conteudo" style={{ justifyItems: "center", minHeight: "60vh", alignContent: "center" }}><span className="carregando" aria-label="Carregando" /></div>;
+  if (!dados.pronto || !perfilCarregado) return <Carregando />;
   if (!perfil) return <BoasVindas aoTerminar={() => undefined} />;
 
   return (
@@ -113,6 +159,7 @@ export default function App() {
             <div className="sub">{aba === "inicio" ? (perfil.uso === "empresa" && perfil.empresa ? perfil.empresa : new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" })) : empresa}</div>
           </div>
           <div className="acoes">
+            <IndicadorSync />
             <button type="button" className="btn icone" data-tour="ler-conta" aria-label="Ler conta pela foto" title="Ler conta pela foto" onClick={() => setLerAberto(true)}><ScanLine /></button>
             <button type="button" className="btn icone" aria-label="Perguntar sobre os números" title="Perguntar sobre os números" onClick={() => setPerguntaAberta(true)}><MessageSquareText /></button>
           </div>
@@ -124,7 +171,7 @@ export default function App() {
         {aba === "metas" && <Metas dados={dados} />}
         {aba === "relatorios" && <Relatorios dados={dados} />}
         {aba === "pessoas" && <Pessoas dados={dados} abrir={abrir} />}
-        {aba === "mais" && <Mais dados={dados} secao={secao} setSecao={setSecao} irAba={(a) => setAba(a)} refazerTour={() => { setAba("inicio"); setTimeout(() => setTour(true), 300); }} />}
+        {aba === "mais" && <Mais dados={dados} email={email} userId={userId} secao={secao} setSecao={setSecao} irAba={(a) => setAba(a)} refazerTour={() => { setAba("inicio"); setTimeout(() => setTour(true), 300); }} />}
       </main>
 
       <button type="button" className="fab" data-tour="lancar" aria-label="Novo lançamento" onClick={novo}><Plus />Lançar</button>
@@ -141,4 +188,16 @@ export default function App() {
 function usePerfil(): [Perfil | null, boolean] {
   const r = useLiveQuery(() => db.config.get("perfil").then((x) => ({ p: (x?.valor as Perfil | undefined) ?? null })), []);
   return [r?.p ?? null, r !== undefined];
+}
+
+function IndicadorSync() {
+  const s = useSync();
+  const rotulo = { desligado: "Sincronização desligada", sincronizando: "Sincronizando…", ok: "Tudo salvo na nuvem", offline: "Sem internet: salvo no aparelho, envia quando voltar", erro: `Erro ao sincronizar: ${s.erro ?? ""}` }[s.status];
+  const I = s.status === "sincronizando" ? RefreshCw : s.status === "ok" ? Cloud : CloudOff;
+  const cor = s.status === "erro" ? "var(--neg)" : s.status === "offline" ? "var(--warn)" : s.status === "ok" ? "var(--pos)" : "var(--muted)";
+  return (
+    <button type="button" className="btn icone" title={rotulo} aria-label={rotulo} onClick={() => void sincronizarAgora()} style={{ color: cor }}>
+      <I className={s.status === "sincronizando" ? "girando" : undefined} />
+    </button>
+  );
 }

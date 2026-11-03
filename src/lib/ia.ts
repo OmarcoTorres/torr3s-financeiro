@@ -1,4 +1,5 @@
 import type { Categoria, Conta, Lancamento, Pessoa } from "../db";
+import { supabase } from "./supabase";
 import { hoje, mesAtual, saldoPessoa, saldosContas, situacao, somarDias, totais, ultimosMeses } from "./calc";
 
 /** Leitura de conta por foto e assistente: chamam as funções do servidor em /api. */
@@ -28,7 +29,8 @@ export interface Proposta {
 async function chamar<T>(rota: string, corpo: unknown): Promise<T> {
   let r: Response;
   try {
-    r = await fetch(rota, { method: "POST", headers: { "Content-Type": "application/json", "X-Financeiro": "1" }, body: JSON.stringify(corpo) });
+    const { data } = await supabase.auth.getSession();
+    r = await fetch(rota, { method: "POST", headers: { "Content-Type": "application/json", "X-Financeiro": "1", Authorization: `Bearer ${data.session?.access_token ?? ""}` }, body: JSON.stringify(corpo) });
   } catch {
     throw new Error("Sem conexão com o servidor. Verifique a internet.");
   }

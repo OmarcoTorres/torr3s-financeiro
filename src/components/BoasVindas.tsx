@@ -136,7 +136,7 @@ export function BoasVindas({ aoTerminar, inicial }: { aoTerminar: (comTreino: bo
             <div className="vitrine">
               <div><Compass /><b>Tour guiado</b><span>8 passos, dá para pular.</span></div>
               <div><Users /><b>Primeiros passos</b><span>Uma lista no início para você completar.</span></div>
-              <div><ShieldCheck /><b>Seus dados</b><span>Ficam neste aparelho. Faça backup.</span></div>
+              <div><ShieldCheck /><b>Seus dados</b><span>Salvos na sua conta, só você acessa.</span></div>
             </div>
           </>
         )}

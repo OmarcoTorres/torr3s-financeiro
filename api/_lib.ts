@@ -9,15 +9,29 @@ export const resposta = (status: number, corpo: unknown) =>
 const LIMITE_POR_MINUTO = 8;
 const acessos = new Map<string, number[]>();
 
-/** Confere método, origem, limite de uso e chave configurada. Devolve um erro pronto ou null. */
-export function barrar(req: Request): Response | null {
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL || "https://wvbpwbhzyhfqrymftwqj.supabase.co";
+const SUPABASE_KEY = process.env.VITE_SUPABASE_ANON_KEY || "";
+
+/** Só usuários logados no Invest+ usam a IA: confere o token da sessão no Supabase. */
+async function usuarioLogado(req: Request) {
+  const token = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
+  if (!token || !SUPABASE_KEY) return null;
+  const r = await fetch(`${SUPABASE_URL}/auth/v1/user`, { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${token}` } }).catch(() => null);
+  if (!r?.ok) return null;
+  return (await r.json()) as { id: string };
+}
+
+/** Confere método, origem, login, limite de uso e chave configurada. Devolve um erro pronto ou null. */
+export async function barrar(req: Request): Promise<Response | null> {
   if (req.method !== "POST") return resposta(405, { erro: "Use POST." });
   if (req.headers.get("x-financeiro") !== "1") return resposta(403, { erro: "Chamada não permitida." });
   const origem = req.headers.get("origin");
   const host = req.headers.get("host");
   if (origem && host && new URL(origem).host !== host) return resposta(403, { erro: "Origem não permitida." });
 
-  const ip = (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || "desconhecido";
+  const usuario = await usuarioLogado(req);
+  if (!usuario) return resposta(401, { erro: "Entre na sua conta para usar a leitura automática." });
+  const ip = usuario.id;
   const agora = Date.now();
   const lista = (acessos.get(ip) ?? []).filter((t) => agora - t < 60_000);
   if (lista.length >= LIMITE_POR_MINUTO) return resposta(429, { erro: "Muitas chamadas seguidas. Espere um minuto e tente de novo." });

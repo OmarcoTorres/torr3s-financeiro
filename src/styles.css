@@ -265,6 +265,7 @@ tfoot td { font-weight: 700; border-bottom: 0; }
 .menu-lista small { display: block; font-weight: 500; color: var(--muted); font-size: .8rem; }
 .carregando { display: inline-block; width: 18px; height: 18px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: girar .7s linear infinite; }
 @keyframes girar { to { transform: rotate(360deg); } }
+.girando { animation: girar 1s linear infinite; }
 
 /* ---------- Boas-vindas (primeiro acesso) ---------- */
 .boasvindas { min-height: 100vh; min-height: 100dvh; display: grid; grid-template-rows: auto 1fr auto; background: var(--bg);

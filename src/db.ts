@@ -71,6 +71,8 @@ export interface ConfigRelatorio {
 export interface RelatorioSalvo { id: string; nome: string; config: ConfigRelatorio }
 
 export interface Config { chave: string; valor: unknown }
+/** Mudança local ainda não enviada ao servidor. */
+export interface ItemFila { chave: string; tabela: string; id: string; op: "put" | "del"; quando: number }
 
 class Banco extends Dexie {
   lancamentos!: EntityTable<Lancamento, "id">;
@@ -82,6 +84,7 @@ class Banco extends Dexie {
   relatorios!: EntityTable<RelatorioSalvo, "id">;
   config!: EntityTable<Config, "chave">;
   metas!: EntityTable<Meta, "id">;
+  fila!: EntityTable<ItemFila, "chave">;
 
   constructor() {
     super("financeiro");
@@ -96,6 +99,7 @@ class Banco extends Dexie {
       config: "chave",
     });
     this.version(2).stores({ metas: "id" });
+    this.version(3).stores({ fila: "chave, quando" });
   }
 }
 

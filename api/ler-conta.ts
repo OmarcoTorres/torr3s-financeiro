@@ -21,7 +21,7 @@ const FERRAMENTA: Anthropic.Tool = {
 };
 
 export async function POST(req: Request) {
-  const bloqueio = barrar(req);
+  const bloqueio = await barrar(req);
   if (bloqueio) return bloqueio;
 
   const corpo = await req.json().catch(() => null) as { imagem?: string; categorias?: string[]; hoje?: string } | null;

@@ -45,7 +45,7 @@ export function Inicio({ dados, perfil, abrir, novo, lerConta, perguntar, ir }: 
     { feito: !!prog.contas, titulo: "Confira suas contas e saldos", sub: perfil.uso === "empresa" ? "Banco da empresa e caixa." : "Conta corrente, carteira, poupança.", acao: () => ir("contas") },
     { feito: cartoes.length > 0, titulo: "Cadastre um cartão de crédito", sub: "Fatura, limite e vencimento num lugar só.", acao: () => ir("cartoes") },
     { feito: dados.metas.length > 0, titulo: "Crie uma meta", sub: "Reserva, viagem ou um equipamento.", acao: () => ir("metas") },
-    { feito: !!prog.backup, titulo: "Guarde um backup", sub: "Os dados ficam no aparelho; o backup é sua cópia.", acao: () => ir("backup") },
+    { feito: !!prog.backup, titulo: "Guarde um backup", sub: "Uma cópia extra em arquivo, além da nuvem.", acao: () => ir("backup") },
   ];
   const feitos = passos.filter((p) => p.feito).length;
   const mostrarPassos = !prog.oculto && feitos < passos.length;
