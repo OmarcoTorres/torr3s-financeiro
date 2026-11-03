@@ -17,7 +17,6 @@ export function BoasVindas({ aoTerminar, inicial }: { aoTerminar: (comTreino: bo
   const [objetivo, setObjetivo] = useState<Objetivo>(inicial?.objetivo ?? "organizar");
   const [metaTxt, setMetaTxt] = useState("");
   const [saldoTxt, setSaldoTxt] = useState("");
-  const [exemplos, setExemplos] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState("");
 
@@ -38,7 +37,7 @@ export function BoasVindas({ aoTerminar, inicial }: { aoTerminar: (comTreino: bo
       nome: nome.trim(), idade: idade ? Number(idade) : undefined, uso, empresa: uso === "empresa" ? empresa.trim() : undefined,
       objetivo, meta: meta ? lerValor(metaTxt) ?? undefined : undefined, criadoEm: inicial?.criadoEm ?? new Date().toISOString(),
     };
-    await aplicarPerfil(perfil, { saldoInicial: lerValor(saldoTxt) ?? 0, exemplos, tour: comTreino });
+    await aplicarPerfil(perfil, { saldoInicial: lerValor(saldoTxt) ?? 0, tour: comTreino });
     aoTerminar(comTreino);
   }
 
@@ -123,7 +122,6 @@ export function BoasVindas({ aoTerminar, inicial }: { aoTerminar: (comTreino: bo
             <h1>Quanto tem hoje na {uso === "empresa" ? "conta da empresa" : "sua conta"}?</h1>
             <p className="lead">É o saldo inicial. Daqui para frente, cada lançamento atualiza esse valor. Você pode cadastrar outras contas depois.</p>
             <input className="campo-grande" id="bv-saldo" autoFocus inputMode="decimal" placeholder="R$ 0,00" value={saldoTxt} onChange={(e) => setSaldoTxt(e.target.value)} onKeyDown={enter} />
-            <label className="chk"><input type="checkbox" checked={exemplos} onChange={(e) => setExemplos(e.target.checked)} />Incluir lançamentos de exemplo para explorar (dá para apagar com um toque)</label>
           </>
         )}
 

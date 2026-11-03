@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { BarChart3, Home, List, MessageSquareText, MoreHorizontal, Plus, ScanLine, Users } from "lucide-react";
-import { db, type Lancamento, type Perfil } from "./db";
+import { db, removerExemplos, type Lancamento, type Perfil } from "./db";
 import { useConfig, useDados, marcarProgresso } from "./components/ui";
 import { LancamentoForm, type Rascunho } from "./components/LancamentoForm";
 import { LerConta } from "./components/LerConta";
@@ -60,6 +60,8 @@ export default function App() {
   const [perguntaAberta, setPerguntaAberta] = useState(false);
   const [tour, setTour] = useState(false);
 
+  // Versões antigas criavam lançamentos de exemplo: limpa ao abrir, o app começa sempre zerado.
+  useEffect(() => { removerExemplos().catch(() => undefined); }, []);
   useEffect(() => { history.replaceState(null, "", `#${aba}`); window.scrollTo(0, 0); if (aba === "relatorios") marcarProgresso("relatorio"); }, [aba]);
   useEffect(() => {
     const root = document.documentElement;

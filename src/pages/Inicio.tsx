@@ -1,12 +1,11 @@
 import { useMemo } from "react";
-import { AlertTriangle, CalendarCheck, Check, ChevronRight, Info, Lightbulb, MessageSquareText, ScanLine } from "lucide-react";
+import { AlertTriangle, CalendarCheck, Check, ChevronRight, Lightbulb, MessageSquareText, ScanLine } from "lucide-react";
 import type { Lancamento, Perfil } from "../db";
-import { removerExemplos } from "../db";
 import { fimDoMes, hoje, mesAtual, saldosContas, situacao, somarDias, totais } from "../lib/calc";
 import { dinheiro } from "../lib/format";
 import { OBJETIVOS, dicaDoDia } from "../lib/perfil";
 import { ItemLancamento } from "../components/ItemLancamento";
-import { BotaoConfirmar, useAviso, useConfig, type DadosApp } from "../components/ui";
+import { useConfig, type DadosApp } from "../components/ui";
 
 export type Progresso = { contas?: boolean; relatorio?: boolean; backup?: boolean; oculto?: boolean };
 
@@ -14,7 +13,6 @@ export function Inicio({ dados, perfil, abrir, novo, lerConta, perguntar, ir }: 
   dados: DadosApp; perfil: Perfil; abrir: (l: Lancamento) => void; novo: () => void; lerConta: () => void; perguntar: () => void;
   ir: (destino: "lancamentos" | "relatorios" | "pessoas" | "fechamento" | "contas" | "backup" | "perfil") => void;
 }) {
-  const aviso = useAviso();
   const [prog, setProg] = useConfig<Progresso>("progresso", {});
   const h = hoje(), mes = mesAtual();
   const saldo = [...saldosContas(dados.contas, dados.lanc, h).values()].reduce((a, b) => a + b, 0);
@@ -23,7 +21,6 @@ export function Inicio({ dados, perfil, abrir, novo, lerConta, perguntar, ir }: 
   const em7 = somarDias(h, 7);
   const proximos = dados.lanc.filter((l) => l.status === "pendente" && (l.vencimento ?? l.data) >= h && (l.vencimento ?? l.data) <= em7)
     .sort((a, b) => (a.vencimento ?? a.data).localeCompare(b.vencimento ?? b.data));
-  const temExemplo = dados.lanc.some((l) => l.exemplo) || dados.pessoas.some((p) => p.exemplo);
   const somaAtras = atrasados.reduce((a, l) => a + l.valor, 0);
   const dica = useMemo(() => dicaDoDia(perfil, dados.lanc), [perfil, dados.lanc]);
 
@@ -39,15 +36,6 @@ export function Inicio({ dados, perfil, abrir, novo, lerConta, perguntar, ir }: 
 
   return (
     <>
-      {temExemplo && (
-        <div className="aviso warn"><Info /><div>
-          Você está vendo <b>lançamentos de exemplo</b>. Quando quiser começar de verdade, remova-os.
-          <div className="linha-botoes">
-            <BotaoConfirmar className="btn" confirmar="Toque de novo para remover" onConfirm={async () => { await removerExemplos(); aviso("Exemplos removidos."); }}>Remover exemplos</BotaoConfirmar>
-          </div>
-        </div></div>
-      )}
-
       <section className="card extrato" aria-label="Saldo" data-tour="extrato">
         <div className="rot">Saldo em todas as contas · {new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "long" })}</div>
         <div className="grande num">{dinheiro(saldo)}</div>

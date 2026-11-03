@@ -152,9 +152,9 @@ export function prepararBanco() {
 
 /**
  * Fim das boas-vindas. Se ainda não há lançamentos reais, monta o app do zero para o perfil
- * (categorias, contas, saldo inicial e, se pedido, exemplos). Se já há dados reais, só guarda o perfil.
+ * (categorias, contas e saldo inicial), sem nenhum lançamento. Se já há dados reais, só guarda o perfil.
  */
-export async function aplicarPerfil(perfil: Perfil, opcoes: { saldoInicial: number; exemplos: boolean; tour: boolean }) {
+export async function aplicarPerfil(perfil: Perfil, opcoes: { saldoInicial: number; tour: boolean }) {
   await db.transaction("rw", [db.categorias, db.contas, db.pessoas, db.lancamentos, db.config, db.fotos], async () => {
     const reais = await db.lancamentos.filter((l) => !l.exemplo).count();
     if (reais === 0) {
@@ -162,8 +162,7 @@ export async function aplicarPerfil(perfil: Perfil, opcoes: { saldoInicial: numb
       await db.pessoas.filter((p) => !!p.exemplo).delete();
       await db.categorias.clear();
       await db.contas.clear();
-      const base = await criarPadroes(perfil.uso, opcoes.saldoInicial);
-      if (opcoes.exemplos) await criarExemplos(perfil.uso, base);
+      await criarPadroes(perfil.uso, opcoes.saldoInicial);
     }
     await db.config.bulkPut([
       { chave: "perfil", valor: perfil },
@@ -174,48 +173,7 @@ export async function aplicarPerfil(perfil: Perfil, opcoes: { saldoInicial: numb
   });
 }
 
-async function criarExemplos(uso: Uso, base: Awaited<ReturnType<typeof criarPadroes>>) {
-  const { cats, principal, caixa } = base;
-  const cat = (n: string) => cats.find((x) => x.nome === n)?.id;
-  const hoje = new Date();
-  const d = (dias: number) => isoLocal(new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() + dias));
-  const dia1 = isoLocal(new Date(hoje.getFullYear(), hoje.getMonth(), 1));
-  const p = (nome: string, tipo: TipoPessoa): Pessoa => ({ id: novoId(), nome: `${nome} (exemplo)`, tipo, exemplo: true });
-  const l = (x: Partial<Lancamento> & Pick<Lancamento, "tipo" | "descricao" | "valor" | "data" | "status">): Lancamento => ({
-    id: novoId(), contaId: principal.id, criadoEm: new Date().toISOString(), exemplo: true, ...x,
-  });
-  if (uso === "empresa") {
-    const cliente = p("Posto Central", "cliente"), joao = p("João Almeida", "cliente"), net = p("NetFibra", "fornecedor");
-    await db.pessoas.bulkAdd([cliente, joao, net]);
-    await db.lancamentos.bulkAdd([
-      l({ tipo: "receita", descricao: "Consultoria mensal", valor: 850000, data: d(-30), status: "pago", categoriaId: cat("Vendas e serviços"), pessoaId: cliente.id }),
-      l({ tipo: "despesa", descricao: "Aluguel do escritório", valor: 280000, data: d(-28), status: "pago", categoriaId: cat("Aluguel") }),
-      l({ tipo: "despesa", descricao: "Internet fibra", valor: 15990, data: d(-25), status: "pago", categoriaId: cat("Internet e telefone"), pessoaId: net.id }),
-      l({ tipo: "receita", descricao: "Projeto de integração", valor: 1200000, data: dia1, status: "pago", categoriaId: cat("Vendas e serviços"), pessoaId: cliente.id }),
-      l({ tipo: "despesa", descricao: "Pró-labore", valor: 600000, data: dia1, status: "pago", categoriaId: cat("Folha e pró-labore") }),
-      l({ tipo: "despesa", descricao: "Combustível", valor: 27500, data: d(-1), status: "pago", categoriaId: cat("Combustível"), contaId: caixa.id }),
-      l({ tipo: "despesa", descricao: "DAS Simples Nacional", valor: 186040, data: d(-2), vencimento: d(-2), status: "pendente", categoriaId: cat("Impostos") }),
-      l({ tipo: "despesa", descricao: "Internet fibra", valor: 15990, data: d(4), vencimento: d(4), status: "pendente", categoriaId: cat("Internet e telefone"), pessoaId: net.id }),
-      l({ tipo: "receita", descricao: "Treinamento da equipe", valor: 350000, data: d(6), vencimento: d(6), status: "pendente", categoriaId: cat("Vendas e serviços"), pessoaId: joao.id }),
-    ]);
-  } else {
-    const ana = p("Ana", "outro");
-    await db.pessoas.bulkAdd([ana]);
-    await db.lancamentos.bulkAdd([
-      l({ tipo: "receita", descricao: "Salário", valor: 620000, data: dia1, status: "pago", categoriaId: cat("Salário") }),
-      l({ tipo: "despesa", descricao: "Aluguel", valor: 180000, data: dia1, status: "pago", categoriaId: cat("Moradia") }),
-      l({ tipo: "despesa", descricao: "Mercado do mês", valor: 74250, data: d(-20), status: "pago", categoriaId: cat("Mercado") }),
-      l({ tipo: "despesa", descricao: "Jantar com amigos", valor: 21800, data: d(-6), status: "pago", categoriaId: cat("Restaurantes e delivery"),
-        divisao: [{ pessoaId: ana.id, valor: 10900 }] }),
-      l({ tipo: "despesa", descricao: "Combustível", valor: 25000, data: d(-3), status: "pago", categoriaId: cat("Transporte"), contaId: caixa.id }),
-      l({ tipo: "despesa", descricao: "Streaming", valor: 5590, data: d(-2), status: "pago", categoriaId: cat("Assinaturas") }),
-      l({ tipo: "despesa", descricao: "Cartão de crédito", valor: 143720, data: d(-1), vencimento: d(-1), status: "pendente", categoriaId: cat("Dívidas e empréstimos") }),
-      l({ tipo: "despesa", descricao: "Conta de luz", valor: 18940, data: d(5), vencimento: d(5), status: "pendente", categoriaId: cat("Contas da casa") }),
-      l({ tipo: "receita", descricao: "Ana me devolve o jantar", valor: 10900, data: d(3), vencimento: d(3), status: "pendente", categoriaId: cat("Renda extra"), pessoaId: ana.id }),
-    ]);
-  }
-}
-
+/** Remove lançamentos e pessoas de exemplo criados por versões antigas do app. */
 export async function removerExemplos() {
   await db.transaction("rw", db.lancamentos, db.pessoas, async () => {
     const ex = await db.lancamentos.filter((l) => l.exemplo === true).primaryKeys();
