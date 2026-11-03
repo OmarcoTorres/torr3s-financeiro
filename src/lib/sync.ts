@@ -22,6 +22,16 @@ const TABELAS: Record<string, { campos: Campo[]; chaveLocal?: string }> = {
   relatorios: { campos: ["id", "nome", "config"] },
 };
 const NOMES = Object.keys(TABELAS);
+/** Colunas obrigatórias no servidor: um campo vazio no aparelho não pode travar o envio. */
+const PADROES: Record<string, Record<string, unknown>> = {
+  contas: { saldo_inicial: 0, cor: "#5b5bd6", tipo: "conta" },
+  categorias: { cor: "#8b8fa3", icone: "tag" },
+  pessoas: { tipo: "outro" },
+  lancamentos: { descricao: "(sem descrição)", status: "pago" },
+  metas: { guardado: 0, icone: "piggy", cor: "#5b5bd6", aportes: [] },
+  fechamentos: { resumo: {} },
+  relatorios: { config: {} },
+};
 const snake = (s: string) => s.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
 
 function paraServidor(tabela: string, espaco: string, obj: Record<string, unknown>) {
@@ -31,6 +41,8 @@ function paraServidor(tabela: string, espaco: string, obj: Record<string, unknow
     const col = c === t.chaveLocal ? "id" : snake(c);
     linha[col] = obj[c] ?? null;
   }
+  for (const [col, v] of Object.entries(PADROES[tabela] ?? {})) if (linha[col] === null || linha[col] === "") linha[col] = v;
+  if (typeof linha.valor === "number") linha.valor = Math.round(Math.abs(linha.valor));
   if (tabela === "lancamentos" && !linha.criado_em) linha.criado_em = new Date().toISOString();
   return linha;
 }
@@ -89,22 +101,40 @@ async function aplicarRemoto(tabelas: string[], fn: () => Promise<void>) {
 }
 
 // ---------- Envio ----------
+/** Falha de rede (sem resposta do servidor) x recusa do servidor para um item específico. */
+function ehFalhaDeRede(e: unknown) {
+  const x = e as { code?: string; status?: number; statusCode?: string; message?: string } | undefined;
+  if (/fetch|network|load failed|abort|timed? ?out|conex/i.test(String(x?.message ?? ""))) return true;
+  return !x?.code && !x?.status && !x?.statusCode;
+}
+const textoErro = (e: unknown) => String((e as { message?: string })?.message ?? e).slice(0, 200);
+
+/**
+ * Envia a fila. Um item que o servidor recusa fica marcado com o erro e continua na fila,
+ * mas não impede os outros de subirem. Falha de rede interrompe e tenta de novo na próxima rodada.
+ */
 async function enviar(espaco: string, userId: string) {
   const itens = await db.fila.toArray();
   if (!itens.length) return;
-  const corte = Math.max(...itens.map((i) => i.quando));
+  const versao = new Map(itens.map((i) => [i.chave, i.quando]));
+  const ok: string[] = [];
+  const falhas = new Map<string, string>();
+  const recusado = (chave: string, e: unknown) => { if (ehFalhaDeRede(e)) throw e; falhas.set(chave, textoErro(e)); };
+
   for (const nome of [...NOMES, "fotos", "perfil"]) {
     const doNome = itens.filter((i) => i.tabela === nome);
     if (!doNome.length) continue;
     if (nome === "perfil") {
       const p = (await db.config.get("perfil"))?.valor as Perfil | undefined;
       if (p) {
+        const idade = p.idade && p.idade >= 12 && p.idade <= 110 ? p.idade : null;
         const { error } = await supabase.from("perfis").upsert({
-          user_id: userId, nome: p.nome, idade: p.idade ?? null, uso: p.uso, empresa: p.empresa ?? null,
-          objetivo: p.objetivo, meta: p.meta ?? null, espaco_atual: espaco, criado_em: p.criadoEm,
+          user_id: userId, nome: p.nome || "Você", idade, uso: p.uso || "pessoal", empresa: p.empresa ?? null,
+          objetivo: p.objetivo || "organizar", meta: p.meta ?? null, espaco_atual: espaco, criado_em: p.criadoEm,
         });
-        if (error) throw error;
+        if (error) { recusado("perfil:perfil", error); continue; }
       }
+      ok.push("perfil:perfil");
       continue;
     }
     const puts = doNome.filter((i) => i.op === "put").map((i) => i.id);
@@ -115,14 +145,16 @@ async function enviar(espaco: string, userId: string) {
         if (!f) { dels.push(id); continue; }
         const caminho = `${espaco}/${id}.jpg`;
         const up = await supabase.storage.from("fotos").upload(caminho, f.blob, { upsert: true, contentType: f.blob.type || "image/jpeg" });
-        if (up.error) throw up.error;
+        if (up.error) { recusado(`fotos:${id}`, up.error); continue; }
         const { error } = await supabase.from("fotos").upsert({ espaco_id: espaco, id, caminho, excluido: false });
-        if (error) throw error;
+        if (error) { recusado(`fotos:${id}`, error); continue; }
+        ok.push(`fotos:${id}`);
       }
       if (dels.length) {
         await supabase.storage.from("fotos").remove(dels.map((id) => `${espaco}/${id}.jpg`));
         const { error } = await supabase.from("fotos").update({ excluido: true }).eq("espaco_id", espaco).in("id", dels);
         if (error) throw error;
+        ok.push(...dels.map((id) => `fotos:${id}`));
       }
       continue;
     }
@@ -131,18 +163,33 @@ async function enviar(espaco: string, userId: string) {
       const linhas: Record<string, unknown>[] = [];
       locais.forEach((o, i) => (o ? linhas.push(paraServidor(nome, espaco, o)) : dels.push(puts[i])));
       for (let i = 0; i < linhas.length; i += 500) {
-        const { error } = await supabase.from(nome).upsert(linhas.slice(i, i + 500), { onConflict: "espaco_id,id" });
-        if (error) throw error;
+        const lote = linhas.slice(i, i + 500);
+        const { error } = await supabase.from(nome).upsert(lote, { onConflict: "espaco_id,id" });
+        if (!error) { ok.push(...lote.map((l) => `${nome}:${l.id}`)); continue; }
+        if (ehFalhaDeRede(error)) throw error;
+        // O lote foi recusado: manda um a um para achar o item com problema e deixar os outros subirem.
+        for (const l of lote) {
+          const r = await supabase.from(nome).upsert(l, { onConflict: "espaco_id,id" });
+          if (r.error) recusado(`${nome}:${l.id}`, r.error);
+          else ok.push(`${nome}:${l.id}`);
+        }
       }
     }
     if (dels.length) {
       const { error } = await supabase.from(nome).update({ excluido: true }).eq("espaco_id", espaco).in("id", dels);
       if (error) throw error;
+      ok.push(...dels.map((id) => `${nome}:${id}`));
     }
   }
-  // Remove só o que foi enviado; mudanças feitas durante o envio ficam para a próxima rodada.
-  await db.fila.where("quando").belowOrEqual(corte).delete();
+
+  // Tira da fila só o que subiu e não mudou de novo durante o envio; marca o erro nos recusados.
+  await db.transaction("rw", db.fila, async () => {
+    const atuais = await db.fila.bulkGet(ok);
+    await db.fila.bulkDelete(atuais.filter((a) => a && a.quando === versao.get(a.chave)).map((a) => a!.chave));
+    for (const [chave, erro] of falhas) await db.fila.update(chave, { erro });
+  });
   mudar({ pendentes: await db.fila.count() });
+  if (falhas.size) console.warn("itens recusados pelo servidor", Object.fromEntries(falhas));
 }
 
 // ---------- Recebimento ----------
@@ -240,22 +287,32 @@ export async function aceitarConviteGrupo(codigo: string) {
 let sessao: { espaco: string; userId: string } | null = null;
 let rodando = false;
 let relogio: number | undefined;
+let rodada = 0;
+let usuarioAtual: string | null = null;
+
+let inicioRodada = 0;
 
 async function ciclo() {
-  if (!sessao || rodando) return;
+  if (!sessao) { void religar(); return; }
+  // Rodada presa há mais de 3 min (app suspenso no meio do envio): libera para tentar de novo.
+  if (rodando && Date.now() - inicioRodada < 180_000) return;
   if (!navigator.onLine) { mudar({ status: "offline" }); return; }
-  rodando = true;
+  const minha = ++rodada;
+  rodando = true; inicioRodada = Date.now();
   mudar({ status: "sincronizando" });
   try {
     await enviar(sessao.espaco, sessao.userId);
     await receber(sessao.espaco);
     await receberCompartilhados(sessao.userId);
-    mudar({ status: "ok", erro: undefined });
+    if (minha !== rodada) return;
+    const recusados = (await db.fila.toArray()).filter((i) => i.erro);
+    if (recusados.length) mudar({ status: "erro", erro: `${recusados.length} ${recusados.length === 1 ? "item não subiu" : "itens não subiram"} (${recusados[0].erro})` });
+    else mudar({ status: "ok", erro: undefined });
   } catch (e) {
     console.error("sincronização", e);
-    mudar({ status: navigator.onLine ? "erro" : "offline", erro: String((e as Error)?.message ?? e) });
+    if (minha === rodada) mudar({ status: navigator.onLine && !ehFalhaDeRede(e) ? "erro" : "offline", erro: textoErro(e) });
   } finally {
-    rodando = false;
+    if (minha === rodada) rodando = false;
   }
 }
 export const sincronizarAgora = () => ciclo();
@@ -279,10 +336,23 @@ async function contarLocal() {
  */
 export async function iniciarSync(userId: string) {
   instalarGanchos();
+  instalarGatilhos();
+  usuarioAtual = userId;
   mudar({ status: "sincronizando" });
-  const { data: espaco, error } = await supabase.rpc("garantir_espaco");
-  if (error || !espaco) { mudar({ status: "erro", erro: error?.message ?? "Sem espaço" }); throw error ?? new Error("Sem espaço"); }
   const anterior = (await db.config.get("sync"))?.valor as { espaco: string; userId: string } | undefined;
+  const { data: espaco, error } = await supabase.rpc("garantir_espaco");
+  if (error || !espaco) {
+    // Sem internet ao abrir, mas este aparelho já tem a conta: abre com os dados locais e sincroniza quando der.
+    if (anterior?.userId === userId && (!error || ehFalhaDeRede(error))) {
+      sessaoPendente = true;
+      mudar({ status: "offline", erro: undefined, pendentes: await db.fila.count() });
+      ligarRelogio();
+      return;
+    }
+    mudar({ status: "erro", erro: error?.message ?? "Sem espaço" });
+    throw error ?? new Error("Sem espaço");
+  }
+  sessaoPendente = false;
   if (anterior && (anterior.espaco !== espaco || anterior.userId !== userId)) {
     await limparDadosLocais();
     await aplicarRemoto(["config"], async () => { await db.config.delete("perfil"); });
@@ -321,10 +391,32 @@ export async function iniciarSync(userId: string) {
   sessao = { espaco, userId };
   mudar({ espacoId: espaco, pendentes: await db.fila.count() });
   await ciclo();
+  ligarRelogio();
+}
+
+function ligarRelogio() {
   window.clearInterval(relogio);
   relogio = window.setInterval(() => void ciclo(), 20_000);
-  window.addEventListener("online", () => void ciclo());
-  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") void ciclo(); });
+}
+
+/** Abriu sem internet: quando a conexão voltar, termina o início da sincronização. */
+let sessaoPendente = false;
+let religando = false;
+async function religar() {
+  if (!sessaoPendente || !usuarioAtual || religando || !navigator.onLine) return;
+  religando = true;
+  try { await iniciarSync(usuarioAtual); } catch (e) { console.error("religar", e); } finally { religando = false; }
+}
+
+let gatilhosInstalados = false;
+function instalarGatilhos() {
+  if (gatilhosInstalados) return;
+  gatilhosInstalados = true;
+  const agora = () => void ciclo();
+  window.addEventListener("online", agora);
+  window.addEventListener("focus", agora);
+  window.addEventListener("pageshow", agora);
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") agora(); });
 }
 
 /** Troca de espaço: envia o pendente, muda no servidor e baixa os dados do novo espaço. */
@@ -351,7 +443,7 @@ async function reiniciarCom(userId: string) {
 export async function sairDaConta() {
   try { await ciclo(); } catch { /* segue mesmo offline */ }
   window.clearInterval(relogio);
-  sessao = null;
+  sessao = null; sessaoPendente = false; usuarioAtual = null;
   // Antes do signOut (ainda com permissão): o aparelho deixa de receber os avisos desta conta.
   await desligarPushAoSair();
   await supabase.auth.signOut();

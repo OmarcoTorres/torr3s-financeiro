@@ -9,7 +9,19 @@ export const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "sb_publis
 
 export const supabaseConfigurado = !!SUPABASE_KEY;
 
+/**
+ * Toda chamada ao servidor tem prazo: no celular, quando o app vai para segundo plano no meio de um envio,
+ * a requisição pode ficar pendurada para sempre e travar a sincronização.
+ */
+function fetchComPrazo(url: RequestInfo | URL, init?: RequestInit) {
+  if (init?.signal || typeof AbortController === "undefined") return fetch(url, init);
+  const ctl = new AbortController();
+  const t = setTimeout(() => ctl.abort(), 60_000);
+  return fetch(url, { ...init, signal: ctl.signal }).finally(() => clearTimeout(t));
+}
+
 export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY || "chave-ausente", {
+  global: { fetch: fetchComPrazo },
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storageKey: "investmais-sessao" },
 });
 

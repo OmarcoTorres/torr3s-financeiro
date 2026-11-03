@@ -82,7 +82,7 @@ export interface RelatorioSalvo { id: string; nome: string; config: ConfigRelato
 
 export interface Config { chave: string; valor: unknown }
 /** Mudança local ainda não enviada ao servidor. */
-export interface ItemFila { chave: string; tabela: string; id: string; op: "put" | "del"; quando: number }
+export interface ItemFila { chave: string; tabela: string; id: string; op: "put" | "del"; quando: number; /** Último erro do servidor ao enviar este item (não trava os outros). */ erro?: string }
 
 class Banco extends Dexie {
   lancamentos!: EntityTable<Lancamento, "id">;
