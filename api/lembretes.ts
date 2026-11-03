@@ -18,21 +18,23 @@ export async function GET(req: Request) {
     for (const userId of usuarios) {
       const { data: prefsRow } = await admin.from("notificacoes_prefs").select("*").eq("user_id", userId).maybeSingle();
       if (prefsRow && !prefsRow.ativo) continue;
-      const prefs: Prefs = { vencimentos: true, dias_antes: 2, atrasadas: true, faturas: true, metas: true, resumo_semanal: true, ...(prefsRow ?? {}) };
+      const prefs: Prefs = { vencimentos: true, dias_antes: 2, atrasadas: true, faturas: true, metas: true, resumo_semanal: true, lembrete_diario: true, ...(prefsRow ?? {}) };
+      const { data: perfil } = await admin.from("perfis").select("nome").eq("user_id", userId).maybeSingle();
       const { data: membros } = await admin.from("membros").select("espaco_id, espacos(nome)").eq("user_id", userId);
       const espacos: EspacoDados[] = [];
       for (const m of membros ?? []) {
         const esp = m.espaco_id as string;
         const limite = somarDias(hoje, 45);
-        const [lanc, contas, metas] = await Promise.all([
-          admin.from("lancamentos").select("id,tipo,descricao,valor,data,vencimento,status,conta_id,conta_destino_id").eq("espaco_id", esp).eq("excluido", false).lte("data", limite).limit(5000),
+        const [lanc, contas, metas, categorias] = await Promise.all([
+          admin.from("lancamentos").select("id,tipo,descricao,valor,data,vencimento,status,conta_id,conta_destino_id,categoria_id").eq("espaco_id", esp).eq("excluido", false).lte("data", limite).limit(5000),
           admin.from("contas").select("id,nome,tipo,saldo_inicial,vencimento_dia").eq("espaco_id", esp).eq("excluido", false),
           admin.from("metas").select("nome,alvo,guardado,prazo").eq("espaco_id", esp).eq("excluido", false),
+          admin.from("categorias").select("id,nome").eq("espaco_id", esp).eq("excluido", false),
         ]);
         const nome = (m as unknown as { espacos?: { nome?: string } }).espacos?.nome ?? "Espaço";
-        espacos.push({ nome, lancamentos: lanc.data ?? [], contas: contas.data ?? [], metas: metas.data ?? [] });
+        espacos.push({ nome, lancamentos: lanc.data ?? [], contas: contas.data ?? [], metas: metas.data ?? [], categorias: categorias.data ?? [] });
       }
-      const avisos = montarAvisos(espacos, hoje, prefs);
+      const avisos = montarAvisos(espacos, hoje, prefs, { nome: perfil?.nome, semente: userId });
       const enviados = avisos.length ? await enviarParaUsuario(admin, userId, avisos) : 0;
       relatorio.push({ usuario: userId.slice(0, 8), avisos: avisos.length, enviados });
     }

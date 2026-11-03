@@ -9,11 +9,11 @@
  */
 import type { Aviso } from "./_push.js";
 
-export interface Prefs { vencimentos: boolean; dias_antes: number; atrasadas: boolean; faturas: boolean; metas: boolean; resumo_semanal: boolean }
-export interface LancamentoBD { id: string; tipo: string; descricao: string; valor: number; data: string; vencimento: string | null; status: string; conta_id: string | null; conta_destino_id: string | null }
+export interface Prefs { vencimentos: boolean; dias_antes: number; atrasadas: boolean; faturas: boolean; metas: boolean; resumo_semanal: boolean; lembrete_diario?: boolean }
+export interface LancamentoBD { id: string; tipo: string; descricao: string; valor: number; data: string; vencimento: string | null; status: string; conta_id: string | null; conta_destino_id: string | null; categoria_id?: string | null }
 export interface ContaBD { id: string; nome: string; tipo: string; saldo_inicial: number; vencimento_dia: number | null }
 export interface MetaBD { nome: string; alvo: number; guardado: number; prazo: string | null }
-export interface EspacoDados { nome: string; lancamentos: LancamentoBD[]; contas: ContaBD[]; metas: MetaBD[] }
+export interface EspacoDados { nome: string; lancamentos: LancamentoBD[]; contas: ContaBD[]; metas: MetaBD[]; categorias?: { id: string; nome: string }[] }
 
 const BRL = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const r$ = (c: number) => BRL.format(c / 100);
@@ -41,7 +41,7 @@ function proximoVencimento(dia: number, hoje: string) {
   return alvo;
 }
 
-export function montarAvisos(espacos: EspacoDados[], hoje: string, p: Prefs): Aviso[] {
+export function montarAvisos(espacos: EspacoDados[], hoje: string, p: Prefs, extra: { nome?: string; semente?: string } = {}): Aviso[] {
   const avisos: (Aviso & { prioridade: number })[] = [];
   const varios = espacos.length > 1;
   const sufixo = (e: EspacoDados) => (varios ? ` · ${e.nome}` : "");
@@ -98,6 +98,66 @@ export function montarAvisos(espacos: EspacoDados[], hoje: string, p: Prefs): Av
       if (semana.length) avisos.push({ title: `Sua semana${sufixo(e)}`, body: `A pagar ${r$(soma(pagar(semana)))} · a receber ${r$(soma(receber(semana)))} em ${semana.length} ${semana.length === 1 ? "conta" : "contas"}.`, tag: `semana-${e.nome}`, url: "/#inicio" , prioridade: 7 });
     }
   }
-  // No máximo 4 por dia, o mais importante primeiro: vence hoje, fatura, atrasadas, vence em breve, a receber, metas, semana.
-  return avisos.sort((a, b) => a.prioridade - b.prioridade).slice(0, 4).map(({ prioridade: _p, ...a }) => a);
+  // No máximo 4 avisos de conta por dia, o mais importante primeiro: vence hoje, fatura, atrasadas, vence em breve, a receber, metas, semana.
+  const principais = avisos.sort((a, b) => a.prioridade - b.prioridade).slice(0, 4).map(({ prioridade: _p, ...a }) => a);
+  if (p.lembrete_diario !== false) principais.push(lembreteDoDia(espacos, hoje, extra.nome, extra.semente ?? ""));
+  return principais;
+}
+
+// ---------- Lembrete diário ----------
+/** Frases curtas e próprias (sem atribuir autoria), sorteadas por dia e por pessoa. */
+export const FRASES = [
+  "Cada real anotado é um real que trabalha a seu favor.",
+  "Quem acompanha o dinheiro de perto decide, em vez de só reagir.",
+  "Pequenos ajustes todo dia valem mais que uma grande promessa no ano novo.",
+  "Seu futuro agradece o cafezinho que você anotou hoje.",
+  "Organização financeira não é sobre ter muito, é sobre saber para onde vai.",
+  "Uma meta sem prazo é um desejo; com prazo, vira plano.",
+  "Gastar com intenção é melhor do que economizar com culpa.",
+  "O melhor dia para começar a reserva foi ontem. O segundo melhor é hoje.",
+  "Constância vence intensidade: dez segundos por dia já bastam.",
+  "Dinheiro guardado é tranquilidade com data marcada.",
+  "Você não precisa cortar tudo, só o que não faz sentido para você.",
+  "Conhecer seus números é o primeiro passo para mudá-los.",
+  "Cada conta paga em dia é uma preocupação a menos.",
+  "Investir começa quando sobra, e sobra quando se acompanha.",
+  "Liberdade financeira se constrói em lançamentos pequenos e repetidos.",
+  "Revise, ajuste, siga. Simples assim.",
+  "Hoje é um bom dia para dar um passo pela sua meta.",
+  "O controle que você tem hoje é a escolha que você terá amanhã.",
+  "Não é sobre o quanto você ganha, é sobre o quanto você mantém.",
+  "Um orçamento é um mapa: mostra o caminho, não te prende nele.",
+];
+
+function hash(t: string) { let h = 2166136261; for (const c of t) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return h >>> 0; }
+
+function lembreteDoDia(espacos: EspacoDados[], hoje: string, nome: string | undefined, semente: string): Aviso {
+  const todos = espacos.flatMap((e) => e.lancamentos);
+  const ontem = somarDias(hoje, -1);
+  const mes = hoje.slice(0, 7);
+  const lancouOntem = todos.some((l) => l.data === ontem);
+  const despesasMes = todos.filter((l) => l.tipo === "despesa" && l.status === "pago" && l.data.startsWith(mes) && l.data <= hoje);
+  const gastoMes = soma(despesasMes);
+  const cats = new Map(espacos.flatMap((e) => (e.categorias ?? []).map((c) => [c.id, c.nome] as const)));
+  const porCat = new Map<string, number>();
+  for (const l of despesasMes) porCat.set(l.categoria_id ?? "", (porCat.get(l.categoria_id ?? "") ?? 0) + Number(l.valor));
+  const maior = [...porCat.entries()].sort((a, b) => b[1] - a[1])[0];
+  const metas = espacos.flatMap((e) => e.metas).filter((m) => Number(m.guardado) < Number(m.alvo));
+
+  const h = hash(`${semente}|${hoje}`);
+  const frase = FRASES[h % FRASES.length];
+  const primeiro = (nome ?? "").trim().split(/\s+/)[0];
+  const ola = `Bom dia${primeiro ? `, ${primeiro}` : ""}`;
+
+  // Ação do dia: se nada foi lançado ontem, isso vem primeiro; senão, alterna revisar gastos e metas.
+  let acao: string;
+  if (!lancouOntem && diaSemana(hoje) !== 1) acao = "Nada lançado ontem. Registre os gastos de ontem: leva 10 segundos.";
+  else {
+    const opcoes: string[] = [];
+    if (gastoMes > 0) opcoes.push(`Revise seus gastos: ${r$(gastoMes)} neste mês${maior && cats.get(maior[0]) ? `, mais em ${cats.get(maior[0])} (${r$(maior[1])})` : ""}.`);
+    if (metas.length) { const m = metas[h % metas.length]; opcoes.push(`Que tal guardar um pouco para “${m.nome}”? Faltam ${r$(Number(m.alvo) - Number(m.guardado))}.`); }
+    opcoes.push("Lance o que gastou hoje assim que puder: com tudo anotado, o mês fecha certo.");
+    acao = opcoes[Math.floor(h / 7) % opcoes.length];
+  }
+  return { title: ola, body: `${acao}\n“${frase}”`, tag: "lembrete-diario", url: "/#inicio" };
 }

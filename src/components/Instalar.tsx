@@ -84,8 +84,8 @@ export function GuiaInstalacao({ irNotificacoes }: { irNotificacoes?: () => void
   );
 }
 
-type Prefs = { ativo: boolean; vencimentos: boolean; dias_antes: number; atrasadas: boolean; faturas: boolean; metas: boolean; resumo_semanal: boolean };
-const PADRAO: Prefs = { ativo: true, vencimentos: true, dias_antes: 2, atrasadas: true, faturas: true, metas: true, resumo_semanal: true };
+type Prefs = { ativo: boolean; lembrete_diario: boolean; vencimentos: boolean; dias_antes: number; atrasadas: boolean; faturas: boolean; metas: boolean; resumo_semanal: boolean };
+const PADRAO: Prefs = { ativo: true, lembrete_diario: true, vencimentos: true, dias_antes: 2, atrasadas: true, faturas: true, metas: true, resumo_semanal: true };
 
 /** Ativar notificações neste aparelho e escolher o que receber. */
 export function Notificacoes({ userId, irInstalar }: { userId: string; irInstalar: () => void }) {
@@ -106,7 +106,7 @@ export function Notificacoes({ userId, irInstalar }: { userId: string; irInstala
   async function salvarPrefs(nova: Prefs) {
     setPrefs(nova);
     const { error } = await supabase.from("notificacoes_prefs").upsert({ user_id: userId, ...nova, atualizado_em: new Date().toISOString() });
-    if (error) setErro(error.message);
+    if (error) setErro(/lembrete_diario/.test(error.message) ? "Falta atualizar o banco (migração 0004) para salvar esta opção." : error.message);
   }
   async function rodar(fn: () => Promise<unknown>, ok?: string) {
     setTrabalhando(true); setErro("");
@@ -144,11 +144,12 @@ export function Notificacoes({ userId, irInstalar }: { userId: string; irInstala
         ) : (
           <button type="button" className="btn pri" disabled={trabalhando} onClick={() => rodar(async () => { await ativarPush(); setAtivoAqui(true); if (prefs && !prefs.ativo) await salvarPrefs({ ...prefs, ativo: true }); }, "Notificações ativadas.")}><Bell />Ativar notificações</button>
         )}
-        <span className="muted" style={{ fontSize: ".8rem" }}>Os lembretes chegam todo dia às 8h, só quando há algo para avisar.</span>
+        <span className="muted" style={{ fontSize: ".8rem" }}>Todo dia às 8h: o bom dia do Invest+ e, quando houver, os avisos de contas, faturas e metas.</span>
       </div>
 
       {prefs && (
         <div className="card" style={{ boxShadow: "none", background: "var(--surface-2)", gap: 4 }}>
+          {toggle("lembrete_diario", "Bom dia do Invest+", "Todo dia: lançar, revisar gastos ou metas, e uma frase para inspirar")}
           {toggle("vencimentos", "Contas a vencer", "No dia e com antecedência, a pagar e a receber")}
           {prefs.vencimentos && (
             <div style={{ padding: "4px 0 10px", display: "grid", gap: 6 }}>
