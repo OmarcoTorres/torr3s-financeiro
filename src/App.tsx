@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { ArrowLeftRight, BarChart3, Cloud, CloudOff, CreditCard, RefreshCw, LayoutGrid, MessageSquareText, MoreHorizontal, Plus, ScanLine, Settings, Target, Users } from "lucide-react";
 import type { Session } from "@supabase/supabase-js";
@@ -6,7 +6,9 @@ import { db, removerExemplos, type Lancamento, type Perfil } from "./db";
 import { supabase, supabaseConfigurado } from "./lib/supabase";
 import { iniciarSync, sairDaConta, sincronizarAgora, useSync } from "./lib/sync";
 import { Login } from "./components/Login";
-import { useConfig, useDados, marcarProgresso } from "./components/ui";
+import { Folha, useConfig, useDados, marcarProgresso } from "./components/ui";
+import { GuiaInstalacao } from "./components/Instalar";
+import { instalado } from "./lib/push";
 import { LancamentoForm, type Rascunho } from "./components/LancamentoForm";
 import { LerConta } from "./components/LerConta";
 import { Assistente } from "./components/Assistente";
@@ -115,6 +117,14 @@ function Painel({ email, userId }: { email: string; userId: string }) {
   const [lerAberto, setLerAberto] = useState(false);
   const [perguntaAberta, setPerguntaAberta] = useState(false);
   const [tour, setTour] = useState(false);
+  const [guiaAberto, setGuiaAberto] = useState(false);
+  const tourAgendado = useRef(false);
+  // Guia de instalação: aparece uma vez por aparelho, depois do primeiro acesso (se ainda não estiver instalado).
+  const oferecerGuia = async () => {
+    if (instalado() || (await db.config.get("guia-visto"))) return;
+    await db.config.put({ chave: "guia-visto", valor: true });
+    setGuiaAberto(true);
+  };
 
   // Versões antigas criavam lançamentos de exemplo: limpa ao abrir, o app começa sempre zerado.
   useEffect(() => { removerExemplos().catch(() => undefined); }, []);
@@ -127,7 +137,9 @@ function Painel({ email, userId }: { email: string; userId: string }) {
   }, [cor, tema]);
   useEffect(() => { document.title = empresa ? `Invest+ · ${empresa}` : "Invest+"; }, [empresa]);
   useEffect(() => {
-    if (perfil && tourPendente) { setAba("inicio"); setTimeout(() => setTour(true), 350); setTourPendente(false); }
+    if (perfil && tourPendente) { tourAgendado.current = true; setAba("inicio"); setTimeout(() => setTour(true), 350); setTourPendente(false); }
+    else if (perfil && !tourPendente && !tourAgendado.current) { const t = setTimeout(() => void oferecerGuia(), 1200); return () => clearTimeout(t); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [perfil, tourPendente, setTourPendente]);
 
   const abrir = (l: Lancamento) => { setFotoNova(undefined); setRascunho(l); };
@@ -181,7 +193,11 @@ function Painel({ email, userId }: { email: string; userId: string }) {
       <LancamentoForm rascunho={rascunho} fotoNova={fotoNova} dados={dados} fechar={() => { setRascunho(null); setFotoNova(undefined); }} />
       <LerConta aberta={lerAberto} fechar={() => setLerAberto(false)} dados={dados} aoLer={(r, foto) => { setLerAberto(false); setFotoNova(foto); setRascunho(r); }} />
       <Assistente aberta={perguntaAberta} fechar={() => setPerguntaAberta(false)} dados={dados} />
-      {tour && <Tour passos={TOUR} aoFechar={() => setTour(false)} />}
+      {tour && <Tour passos={TOUR} aoFechar={() => { setTour(false); setTimeout(() => void oferecerGuia(), 600); }} />}
+      <Folha titulo="Use o Invest+ como app" aberta={guiaAberto} fechar={() => setGuiaAberto(false)}>
+        <GuiaInstalacao irNotificacoes={() => { setGuiaAberto(false); setAba("mais"); setSecao("notificacoes"); }} />
+        <button type="button" className="btn fantasma" onClick={() => setGuiaAberto(false)}>Agora não (fica em Ajustes › Instalar no celular)</button>
+      </Folha>
     </div>
   );
 }

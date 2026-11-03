@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { CalendarCheck, CheckCircle2, ChevronRight, Copy, CreditCard, Landmark, LogOut, ShieldCheck, Share2, Database, GraduationCap, Lock, LockOpen, Palette, Tags, UserRound, Users, Wallet } from "lucide-react";
+import { Bell, CalendarCheck, CheckCircle2, Smartphone, ChevronRight, Copy, CreditCard, Landmark, LogOut, ShieldCheck, Share2, Database, GraduationCap, Lock, LockOpen, Palette, Tags, UserRound, Users, Wallet } from "lucide-react";
 import { db, ehCartao, novoId, type Categoria, type Conta, type Objetivo, type Perfil } from "../db";
 import { OBJETIVOS } from "../lib/perfil";
 import { supabase } from "../lib/supabase";
@@ -9,14 +9,17 @@ import { dataCurta, dinheiro, lerValor, mesExtenso, numeroBR } from "../lib/form
 import { apagarTudo, exportarBackup, importarBackup } from "../lib/backup";
 import { BotaoConfirmar, CORES, Campo, Folha, ICONES, IconeCategoria, Seg, SeletorMes, marcarProgresso, useAviso, useConfig, type DadosApp } from "../components/ui";
 import { InputDigitos, InputNome, InputValor } from "../components/campos";
+import { GuiaInstalacao, Notificacoes } from "../components/Instalar";
 
-export type Secao = "" | "conta" | "openfinance" | "perfil" | "fechamento" | "categorias" | "contas" | "aparencia" | "backup";
+export type Secao = "" | "conta" | "instalar" | "notificacoes" | "openfinance" | "perfil" | "fechamento" | "categorias" | "contas" | "aparencia" | "backup";
 
 export function Mais({ dados, email, userId, secao, setSecao, refazerTour, irAba }: { dados: DadosApp; email: string; userId: string; secao: Secao; setSecao: (s: Secao) => void; refazerTour: () => void; irAba: (a: "cartoes" | "pessoas") => void }) {
   const fechar = () => setSecao("");
   useEffect(() => { if (secao === "contas") marcarProgresso("contas"); }, [secao]);
   const itens: [Secao, typeof Wallet, string, string][] = [
     ["conta", Share2, "Conta e compartilhamento", email],
+    ["notificacoes", Bell, "Notificações", "Vencimentos, faturas, metas e resumo da semana"],
+    ["instalar", Smartphone, "Instalar no celular", "Ícone na tela de início, em tela cheia"],
     ["perfil", UserRound, "Seu perfil e objetivo", "Nome, idade, objetivo e meta do mês"],
     ["openfinance", Landmark, "Open Finance", "Conectar bancos e importar transações · em breve"],
     ["fechamento", CalendarCheck, "Fechamento mensal", "Saldo do mês, pendências e fechar/reabrir"],
@@ -46,6 +49,8 @@ export function Mais({ dados, email, userId, secao, setSecao, refazerTour, irAba
         <div><button type="button" className="btn" onClick={refazerTour}><GraduationCap />Refazer o tour</button></div>
       </section>
       <Folha titulo="Conta e compartilhamento" aberta={secao === "conta"} fechar={fechar}><ContaECompartilhar email={email} userId={userId} /></Folha>
+      <Folha titulo="Notificações" aberta={secao === "notificacoes"} fechar={fechar}><Notificacoes userId={userId} irInstalar={() => setSecao("instalar")} /></Folha>
+      <Folha titulo="Instalar no celular" aberta={secao === "instalar"} fechar={fechar}><GuiaInstalacao irNotificacoes={() => setSecao("notificacoes")} /></Folha>
       <Folha titulo="Open Finance" aberta={secao === "openfinance"} fechar={fechar}><OpenFinance /></Folha>
       <Folha titulo="Seu perfil e objetivo" aberta={secao === "perfil"} fechar={fechar}><EditarPerfil fechar={fechar} /></Folha>
       <Folha titulo="Fechamento mensal" aberta={secao === "fechamento"} fechar={fechar}><Fechamento dados={dados} /></Folha>

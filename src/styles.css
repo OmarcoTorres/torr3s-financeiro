@@ -368,6 +368,21 @@ input[type="date"]::-webkit-calendar-picker-indicator, input[type="month"]::-web
 .atalhos-data button { border: 0; background: var(--surface-2); color: var(--muted); border-radius: 999px; padding: 6px 11px; font-size: .78rem; font-weight: 600; }
 .atalhos-data button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); }
 .vazio-mes { justify-items: center; grid-template-columns: 1fr; }
+/* Guia de instalação */
+.guia { gap: 0 !important; padding: 6px 16px !important; }
+.passo-guia { display: grid; grid-template-columns: 28px 1fr 36px; gap: 12px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--line); font-size: .92rem; }
+.passo-guia:last-child { border-bottom: 0; }
+.num-guia { width: 28px; height: 28px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; font-weight: 700; font-size: .85rem; }
+.ic-guia { width: 36px; height: 36px; border-radius: 11px; background: var(--surface); color: var(--accent); display: grid; place-items: center; }
+/* Interruptores */
+.linha-toggle { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); cursor: pointer; }
+.linha-toggle:last-child { border-bottom: 0; }
+.linha-toggle b { display: block; font-weight: 600; font-size: .92rem; }
+.linha-toggle small { color: var(--muted); font-size: .8rem; }
+.interruptor { -webkit-appearance: none; appearance: none; width: 48px; height: 28px; border-radius: 999px; background: color-mix(in srgb, var(--muted) 35%, transparent); position: relative; cursor: pointer; transition: background .2s; flex: none; margin: 0; }
+.interruptor::after { content: ""; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgb(0 0 0 / 25%); transition: transform .2s; }
+.interruptor:checked { background: var(--accent); }
+.interruptor:checked::after { transform: translateX(20px); }
 .of-banco { display: grid; grid-template-columns: 40px 1fr auto; gap: 12px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); }
 .of-banco:last-child { border-bottom: 0; }
 .of-banco .lg { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; color: #fff; font-weight: 700; font-size: .8rem; }

@@ -27,3 +27,9 @@ Importe o repositório na Vercel (framework Vite, sem mudanças) e configure `AN
 - `src/pages/` — Início, Lançamentos, Relatórios, Pessoas, Mais
 - `src/components/` — formulário de lançamento, leitura de conta, assistente
 - `api/` — `ler-conta` e `assistente` (limite de 8 chamadas por minuto por IP)
+
+## Notificações
+
+- Banco: `supabase/migrations/0002_notificacoes.sql` (inscrições por aparelho e preferências).
+- Envio: `api/lembretes.ts`, chamado pelo Vercel Cron todo dia às 8h de Brasília (`vercel.json`); regras em `api/_regras-lembretes.ts`.
+- Variáveis na Vercel: `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `CRON_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`.
