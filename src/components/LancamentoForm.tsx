@@ -61,7 +61,8 @@ export function LancamentoForm({ rascunho, fotoNova, fechar, dados }: { rascunho
     setPartes((r.divisao ?? []).map((d) => ({ pessoaId: d.pessoaId, txt: numeroBR(d.valor) })));
     setFoto(fotoNova);
     if (r.fotoId) db.fotos.get(r.fotoId).then((f) => f && setFoto(f.blob));
-  }, [rascunho, fotoNova, dados.contas]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só ao abrir: dados que chegam da sincronização não podem apagar o que está sendo digitado.
+  }, [rascunho, fotoNova]);
 
   useEffect(() => {
     if (!foto) { setFotoUrl(""); return; }

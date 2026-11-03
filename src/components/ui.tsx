@@ -41,15 +41,19 @@ export function useConfig<T>(chave: string, padrao: T): [T, (v: T) => Promise<vo
 
 export function Folha({ titulo, aberta, fechar, children, acoes }: { titulo: string; aberta: boolean; fechar: () => void; children: ReactNode; acoes?: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
+  // fechar muda a cada renderização (função criada na hora); guardada em ref para o efeito
+  // rodar só ao abrir. Antes ele rodava a cada letra e devolvia o foco para a janela.
+  const fecharRef = useRef(fechar);
+  fecharRef.current = fechar;
   useEffect(() => {
     if (!aberta) return;
-    const esc = (e: KeyboardEvent) => e.key === "Escape" && fechar();
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && fecharRef.current();
     document.addEventListener("keydown", esc);
     const anterior = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    ref.current?.focus();
+    ref.current?.focus({ preventScroll: true });
     return () => { document.removeEventListener("keydown", esc); document.body.style.overflow = anterior; };
-  }, [aberta, fechar]);
+  }, [aberta]);
   if (!aberta) return null;
   return (
     <div className="fundo" onMouseDown={(e) => e.target === e.currentTarget && fechar()}>
