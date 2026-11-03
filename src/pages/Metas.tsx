@@ -3,7 +3,7 @@ import { Plus, Target } from "lucide-react";
 import { db, novoId, type Meta } from "../db";
 import { hoje, mesAtual } from "../lib/calc";
 import { dataCurta, dinheiro, lerValor, mesExtenso, numeroBR } from "../lib/format";
-import { BotaoConfirmar, CORES, Campo, Folha, ICONES, IconeCategoria, useAviso, type DadosApp } from "../components/ui";
+import { BotaoConfirmar, CORES, Campo, Folha, ICONES, IconeCategoria, useAviso, useDinheiro, type DadosApp } from "../components/ui";
 import { CampoMesOpcional, InputValor } from "../components/campos";
 
 const ICONES_META = ["piggy", "plane", "home", "car", "school", "heart", "monitor", "briefcase", "landmark", "cart"];
@@ -25,6 +25,7 @@ export function resumoMeta(m: Meta) {
 
 export function ItemMeta({ m, abrir }: { m: Meta; abrir: () => void }) {
   const r = resumoMeta(m);
+  const $ = useDinheiro();
   return (
     <button type="button" className="meta-item" onClick={abrir}>
       <div className="lin">
@@ -32,7 +33,7 @@ export function ItemMeta({ m, abrir }: { m: Meta; abrir: () => void }) {
         <div>
           <div style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.nome}</div>
           <div className="muted num" style={{ fontSize: ".8rem" }}>
-            {dinheiro(m.guardado)} / {dinheiro(m.alvo)}
+            {$(m.guardado)} / {$(m.alvo)}
             {r.falta === 0 ? " · concluída" : r.meses !== undefined ? ` · ${r.meses === 0 ? "prazo neste mês" : `faltam ${r.meses} ${r.meses === 1 ? "mês" : "meses"}`}` : ""}
           </div>
         </div>

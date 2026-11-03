@@ -5,6 +5,7 @@ import {
   GraduationCap, Plane, Wrench, Megaphone, PiggyBank, Receipt, ArrowLeftRight, X, ChevronLeft, ChevronRight, type LucideIcon,
 } from "lucide-react";
 import { db } from "../db";
+import { dinheiro } from "../lib/format";
 
 export const ICONES: Record<string, LucideIcon> = {
   briefcase: Briefcase, plus: Plus, home: Home, users: Users, landmark: Landmark, wifi: Wifi, zap: Zap, fuel: Fuel,
@@ -124,5 +125,20 @@ export function SeletorMes({ valor, mudar, rotulo = "Mês" }: { valor: string; m
       <button type="button" onClick={() => passo(1)} aria-label="Próximo mês"><ChevronRight /></button>
     </div>
   );
+}
+
+// ---------- Ocultar valores (olho do Dashboard) ----------
+export const MASCARA = "R$ •••••";
+const OcultarCtx = createContext(false);
+export const OcultarValores = OcultarCtx.Provider;
+/** Formata centavos, ou devolve a máscara quando os valores estão ocultos na tela atual. */
+export function useDinheiro() {
+  const ocultar = useContext(OcultarCtx);
+  return (centavos: number) => (ocultar ? MASCARA : dinheiro(centavos));
+}
+/** Esconde valores em reais dentro de um texto pronto (ex.: dica do dia). */
+export function useTextoSemValores() {
+  const ocultar = useContext(OcultarCtx);
+  return (t: string) => (ocultar ? t.replace(/-?R\$\s?[\d.,]+/g, MASCARA) : t);
 }
 

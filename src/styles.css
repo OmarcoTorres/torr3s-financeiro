@@ -57,7 +57,11 @@ p { margin: 0; }
 .conteudo { padding-top: calc(env(safe-area-inset-top, 0px) + 12px); padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 104px);
   padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
   width: 100%; max-width: 1180px; margin: 0 auto; display: grid; gap: 18px; align-content: start; min-width: 0; }
-.topo { display: flex; align-items: center; gap: 12px; padding-block: 4px; }
+/* Itens da grade principal podem encolher: sem isso o topo (data longa + 3 ícones) alarga a tela no celular. */
+.conteudo > * { min-width: 0; }
+.topo { display: flex; align-items: center; gap: 12px; padding-block: 4px; min-width: 0; }
+.topo > div:nth-child(2) { min-width: 0; flex: 1; }
+.topo h1, .topo .sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .topo .logo { width: 42px; height: 42px; border-radius: 14px; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; font-weight: 700; font-family: var(--display); overflow: hidden; flex: none; }
 .topo .logo img { width: 100%; height: 100%; object-fit: cover; }
 .topo h1 { font-size: 1.35rem; }
@@ -102,6 +106,9 @@ p { margin: 0; }
 .kpi-card { background: var(--surface); border-radius: var(--r); padding: 16px 18px; box-shadow: var(--shadow); display: grid; gap: 6px; min-width: 0; }
 .kpi-card .v { font-family: var(--display); font-weight: 600; font-size: clamp(1.1rem, 4.4vw, 1.45rem); letter-spacing: -.01em; overflow-wrap: anywhere; }
 .kpi-card.principal { background: var(--accent); color: var(--accent-ink); }
+.cab-kpi { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: -4px -6px 0 0; }
+.olho-kpi { border: 0; width: 34px; height: 34px; border-radius: 11px; display: grid; place-items: center; background: color-mix(in srgb, var(--accent-ink) 16%, transparent); color: var(--accent-ink); }
+.olho-kpi:focus-visible { outline: 2px solid var(--accent-ink); outline-offset: 2px; }
 .kpi-card.principal .rotulo { color: color-mix(in srgb, var(--accent-ink) 75%, transparent); }
 .grade { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
 .kpi { display: grid; gap: 2px; min-width: 0; } .kpi .k { font-size: .76rem; color: var(--muted); font-weight: 600; } .kpi .v { font-size: 1.2rem; font-weight: 600; font-family: var(--display); }

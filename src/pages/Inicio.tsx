@@ -1,11 +1,11 @@
 import { useMemo } from "react";
-import { AlertTriangle, CalendarCheck, Check, ChevronRight, CreditCard, Lightbulb, MessageSquareText, PieChart, ScanLine, Target } from "lucide-react";
+import { AlertTriangle, CalendarCheck, Check, ChevronRight, CreditCard, Eye, EyeOff, Lightbulb, MessageSquareText, PieChart, ScanLine, Target } from "lucide-react";
 import { ehCartao, type Lancamento, type Perfil } from "../db";
 import { hoje, mesAtual, saldosContas, situacao, somarDias, totais } from "../lib/calc";
-import { dinheiro, mesExtenso } from "../lib/format";
+import { mesExtenso } from "../lib/format";
 import { OBJETIVOS, dicaDoDia } from "../lib/perfil";
 import { ItemLancamento } from "../components/ItemLancamento";
-import { useConfig, type DadosApp } from "../components/ui";
+import { OcultarValores, useConfig, useDinheiro, useTextoSemValores, type DadosApp } from "../components/ui";
 import { MiniCartao, situacaoCartao } from "./Cartoes";
 import { ItemMeta } from "./Metas";
 
@@ -16,6 +16,21 @@ export function Inicio({ dados, perfil, abrir, novo, lerConta, perguntar, ir }: 
   dados: DadosApp; perfil: Perfil; abrir: (l: Lancamento) => void; novo: () => void; lerConta: () => void; perguntar: () => void; ir: (d: Destino) => void;
 }) {
   const [prog, setProg] = useConfig<Progresso>("progresso", {});
+  // Valores ocultos por padrão; o app lembra a última escolha neste aparelho.
+  const [ocultar, setOcultar] = useConfig("ocultarValores", true);
+  return (
+    <OcultarValores value={ocultar}>
+      <Painel dados={dados} perfil={perfil} abrir={abrir} novo={novo} lerConta={lerConta} perguntar={perguntar} ir={ir} prog={prog} setProg={setProg} ocultar={ocultar} alternar={() => setOcultar(!ocultar)} />
+    </OcultarValores>
+  );
+}
+
+function Painel({ dados, perfil, abrir, novo, lerConta, perguntar, ir, prog, setProg, ocultar, alternar }: {
+  dados: DadosApp; perfil: Perfil; abrir: (l: Lancamento) => void; novo: () => void; lerConta: () => void; perguntar: () => void; ir: (d: Destino) => void;
+  prog: Progresso; setProg: (p: Progresso) => Promise<void>; ocultar: boolean; alternar: () => void;
+}) {
+  const $ = useDinheiro();
+  const semValores = useTextoSemValores();
   const h = hoje(), mes = mesAtual();
   const contas = dados.contas.filter((c) => !ehCartao(c));
   const cartoes = dados.contas.filter(ehCartao);
@@ -54,10 +69,18 @@ export function Inicio({ dados, perfil, abrir, novo, lerConta, perguntar, ir }: 
   return (
     <>
       <div className="kpis" data-tour="extrato">
-        <div className="kpi-card principal"><span className="rotulo">Saldo total</span><span className="v num">{dinheiro(saldo)}</span></div>
-        <div className="kpi-card"><span className="rotulo">Receitas</span><span className="v num pos">{dinheiro(t.entradas)}</span></div>
-        <div className="kpi-card"><span className="rotulo">Despesas</span><span className="v num neg">{dinheiro(t.saidas)}</span></div>
-        <div className="kpi-card"><span className="rotulo">Faturas</span><span className="v num">{dinheiro(faturas)}</span></div>
+        <div className="kpi-card principal">
+          <div className="cab-kpi">
+            <span className="rotulo">Saldo total</span>
+            <button type="button" className="olho-kpi" onClick={alternar} aria-pressed={!ocultar} aria-label={ocultar ? "Mostrar valores" : "Ocultar valores"} title={ocultar ? "Mostrar valores" : "Ocultar valores"}>
+              {ocultar ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
+          </div>
+          <span className="v num">{$(saldo)}</span>
+        </div>
+        <div className="kpi-card"><span className="rotulo">Receitas</span><span className="v num pos">{$(t.entradas)}</span></div>
+        <div className="kpi-card"><span className="rotulo">Despesas</span><span className="v num neg">{$(t.saidas)}</span></div>
+        <div className="kpi-card"><span className="rotulo">Faturas</span><span className="v num">{$(faturas)}</span></div>
       </div>
 
       <div className="atalhos">
@@ -95,7 +118,7 @@ export function Inicio({ dados, perfil, abrir, novo, lerConta, perguntar, ir }: 
                   <span className="ponto" style={{ background: c.cor }} />
                   <span className="nm">{c.nome}</span>
                   <span className="trilho"><i style={{ width: `${(c.v / maxCat) * 100}%`, background: c.cor }} /></span>
-                  <span className="num">{dinheiro(c.v)}</span>
+                  <span className="num">{$(c.v)}</span>
                 </div>
               ))}
             </div>
@@ -113,7 +136,7 @@ export function Inicio({ dados, perfil, abrir, novo, lerConta, perguntar, ir }: 
         <section className="card">
           <div className="cab"><h2>Contas a vencer</h2><span className="chip">7 dias</span></div>
           {atrasados.length > 0 && (
-            <div className="aviso neg"><AlertTriangle /><div><b>{atrasados.length === 1 ? "1 conta atrasada" : `${atrasados.length} contas atrasadas`}</b> · {dinheiro(atrasados.reduce((a, l) => a + l.valor, 0))}</div></div>
+            <div className="aviso neg"><AlertTriangle /><div><b>{atrasados.length === 1 ? "1 conta atrasada" : `${atrasados.length} contas atrasadas`}</b> · {$(atrasados.reduce((a, l) => a + l.valor, 0))}</div></div>
           )}
           {aVencer.length ? <div className="lista">{aVencer.map((l) => <ItemLancamento key={l.id} l={l} dados={dados} abrir={abrir} mostrarData />)}</div>
             : <p className="muted">Nada vencendo nesta semana.</p>}
@@ -129,7 +152,7 @@ export function Inicio({ dados, perfil, abrir, novo, lerConta, perguntar, ir }: 
                   <button key={c.id} type="button" className="cartao" onClick={() => ir("cartoes")}>
                     <MiniCartao c={c} />
                     <div><span className="nm">{c.nome}</span>{c.limite ? <div className="trilho-prog"><i style={{ width: `${s.pct}%`, background: c.cor }} /></div> : <span className="det">Sem limite cadastrado</span>}</div>
-                    <b className="num fat">{dinheiro(s.usado)}</b>
+                    <b className="num fat">{$(s.usado)}</b>
                   </button>
                 );
               })}
@@ -145,7 +168,7 @@ export function Inicio({ dados, perfil, abrir, novo, lerConta, perguntar, ir }: 
 
         <section className="aviso dica largo">
           <Lightbulb />
-          <div><b>Dica para {OBJETIVOS[perfil.objetivo].titulo.toLowerCase()}</b><p className="muted" style={{ marginTop: 2 }}>{dica}</p></div>
+          <div><b>Dica para {OBJETIVOS[perfil.objetivo].titulo.toLowerCase()}</b><p className="muted" style={{ marginTop: 2 }}>{semValores(dica)}</p></div>
         </section>
       </div>
     </>
@@ -154,13 +177,14 @@ export function Inicio({ dados, perfil, abrir, novo, lerConta, perguntar, ir }: 
 
 function MetaDoMes({ perfil, entradas, saidas, resultado, ir }: { perfil: Perfil; entradas: number; saidas: number; resultado: number; ir: (d: "perfil") => void }) {
   const o = OBJETIVOS[perfil.objetivo];
+  const $ = useDinheiro();
   if (!o.meta) {
     const valor = perfil.objetivo === "crescer" ? entradas : saidas;
     return (
       <section className="card">
         <div><h2>Seu foco</h2><span className="muted" style={{ fontSize: ".84rem" }}>{o.titulo}</span></div>
-        <div className="cab"><span className="muted">{perfil.objetivo === "crescer" ? "Receitas do mês" : "Despesas do mês"}</span><b className="num" style={{ fontFamily: "var(--display)", fontSize: "1.3rem", fontWeight: 600 }}>{dinheiro(valor)}</b></div>
-        <span className="muted" style={{ fontSize: ".86rem" }}>Resultado do mês: <b className={resultado >= 0 ? "pos" : "neg"}>{dinheiro(resultado)}</b></span>
+        <div className="cab"><span className="muted">{perfil.objetivo === "crescer" ? "Receitas do mês" : "Despesas do mês"}</span><b className="num" style={{ fontFamily: "var(--display)", fontSize: "1.3rem", fontWeight: 600 }}>{$(valor)}</b></div>
+        <span className="muted" style={{ fontSize: ".86rem" }}>Resultado do mês: <b className={resultado >= 0 ? "pos" : "neg"}>{$(resultado)}</b></span>
       </section>
     );
   }
@@ -177,12 +201,12 @@ function MetaDoMes({ perfil, entradas, saidas, resultado, ir }: { perfil: Perfil
   const pct = Math.min(100, (atual / perfil.meta) * 100);
   const estourou = !economizar && saidas > perfil.meta;
   const texto = economizar
-    ? resultado >= perfil.meta ? "Meta do mês batida." : `Faltam ${dinheiro(perfil.meta - Math.max(0, resultado))} para a meta.`
-    : estourou ? `Passou ${dinheiro(saidas - perfil.meta)} do limite.` : `Ainda cabem ${dinheiro(perfil.meta - saidas)} no limite.`;
+    ? resultado >= perfil.meta ? "Meta do mês batida." : `Faltam ${$(perfil.meta - Math.max(0, resultado))} para a meta.`
+    : estourou ? `Passou ${$(saidas - perfil.meta)} do limite.` : `Ainda cabem ${$(perfil.meta - saidas)} no limite.`;
   return (
     <section className="card">
       <div className="cab"><h2>{economizar ? "Meta de sobra do mês" : "Limite de gastos"}</h2><button type="button" className="btn fantasma" onClick={() => ir("perfil")}>Ajustar</button></div>
-      <div className="cab"><b className="num" style={{ fontFamily: "var(--display)", fontSize: "1.45rem", fontWeight: 600 }}>{dinheiro(atual)}</b><span className="muted num">de {dinheiro(perfil.meta)}</span></div>
+      <div className="cab"><b className="num" style={{ fontFamily: "var(--display)", fontSize: "1.45rem", fontWeight: 600 }}>{$(atual)}</b><span className="muted num">de {$(perfil.meta)}</span></div>
       <div className={`trilho-prog ${estourou ? "estourou" : ""}`}><i style={{ width: `${pct}%` }} /></div>
       <span className={estourou ? "neg" : "muted"} style={{ fontSize: ".86rem" }}>{texto}</span>
     </section>

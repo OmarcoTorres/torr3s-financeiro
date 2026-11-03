@@ -2,7 +2,7 @@ import { Lock, Paperclip, Repeat } from "lucide-react";
 import { ehCartao, type Lancamento } from "../db";
 import { mesFechado, situacao } from "../lib/calc";
 import { dataCurta, dinheiro } from "../lib/format";
-import { IconeCategoria, type DadosApp } from "./ui";
+import { IconeCategoria, MASCARA, useDinheiro, type DadosApp } from "./ui";
 
 const ROT = { pago: "pago", pendente: "pendente", atrasado: "atrasado" } as const;
 
@@ -12,6 +12,7 @@ export function ItemLancamento({ l, dados, abrir, mostrarData }: { l: Lancamento
   const conta = dados.contas.find((c) => c.id === l.contaId);
   const destino = dados.contas.find((c) => c.id === l.contaDestinoId);
   const sit = situacao(l);
+  const ocultar = useDinheiro();
   const sinal = l.tipo === "receita" ? "+" : l.tipo === "despesa" ? "-" : "";
   const cor = l.tipo === "receita" ? "pos" : l.tipo === "despesa" ? "" : "muted";
   return (
@@ -32,7 +33,7 @@ export function ItemLancamento({ l, dados, abrir, mostrarData }: { l: Lancamento
         </div>
       </div>
       <div className="val">
-        <span className={`num ${cor}`}>{sinal}{dinheiro(l.valor)}</span>
+        <span className={`num ${cor}`}>{ocultar(l.valor) === MASCARA ? MASCARA : `${sinal}${dinheiro(l.valor)}`}</span>
         <span className={`pill ${sit}`}>{ROT[sit]}</span>
       </div>
     </button>
