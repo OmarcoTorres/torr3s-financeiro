@@ -445,13 +445,13 @@ function instalarGatilhos() {
 
 /** Troca de espaço: envia o pendente, muda no servidor e baixa os dados do novo espaço. */
 export async function trocarEspaco(userId: string, espaco: string) {
-  await ciclo();
+  await exigirFilaVazia();
   const { error } = await supabase.rpc("usar_espaco", { p_espaco: espaco });
   if (error) throw error;
   await reiniciarCom(userId);
 }
 export async function entrarComCodigo(userId: string, codigo: string) {
-  await ciclo();
+  await exigirFilaVazia();
   const { error } = await supabase.rpc("aceitar_convite", { p_codigo: codigo });
   if (error) throw error;
   await reiniciarCom(userId);
@@ -463,9 +463,34 @@ async function reiniciarCom(userId: string) {
   await iniciarSync(userId);
 }
 
-/** Sair: envia o que falta e apaga os dados deste aparelho (ficam guardados na conta). */
-export async function sairDaConta() {
-  try { await ciclo(); } catch { /* segue mesmo offline */ }
+/** Espera a rodada em andamento terminar (até ~15 s) e roda mais uma, para a fila refletir o envio mais recente. */
+async function enviarPendentesAgora() {
+  const limite = Date.now() + 15_000;
+  while (rodando && Date.now() < limite) await new Promise((r) => setTimeout(r, 300));
+  try { await ciclo(); } catch { /* o que não subiu continua na fila */ }
+  const n = await db.fila.count();
+  mudar({ pendentes: n });
+  return n;
+}
+
+const textoPendentes = (n: number) => `${n} ${n === 1 ? "mudança ainda não subiu" : "mudanças ainda não subiram"} para a nuvem`;
+
+/** Trocar de espaço apaga os dados locais: só segue se tudo já estiver na nuvem. */
+async function exigirFilaVazia() {
+  const n = await enviarPendentesAgora();
+  if (n) throw new Error(`${textoPendentes(n)}. Conecte-se à internet e tente de novo, ou exporte um backup antes.`);
+}
+
+export type ResultadoSair = { saiu: true } | { saiu: false; pendentes: number; texto: string };
+
+/**
+ * Sair: envia o que falta e apaga os dados deste aparelho (ficam guardados na conta).
+ * Se algo não subiu, NÃO sai: devolve quantos ficaram, para a tela oferecer tentar de novo ou baixar backup.
+ * `descartarPendentes` só depois que a pessoa escolheu (ex.: já baixou o backup).
+ */
+export async function sairDaConta(opcoes: { descartarPendentes?: boolean } = {}): Promise<ResultadoSair> {
+  const pendentes = await enviarPendentesAgora();
+  if (pendentes && !opcoes.descartarPendentes) return { saiu: false, pendentes, texto: textoPendentes(pendentes) };
   window.clearInterval(relogio);
   sessao = null; sessaoPendente = false; usuarioAtual = null;
   // Antes do signOut (ainda com permissão): o aparelho deixa de receber os avisos desta conta.
@@ -475,4 +500,5 @@ export async function sairDaConta() {
     for (const t of [...TABELAS_DADOS, "fila", "config", "compartilhados"]) await db.table(t).clear();
   });
   mudar({ status: "desligado", espacoId: undefined, pendentes: 0 });
+  return { saiu: true };
 }

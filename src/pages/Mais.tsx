@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { Bell, CalendarCheck, CheckCircle2, Smartphone, ChevronRight, CreditCard, Landmark, LogOut, ShieldCheck, Share2, Database, GraduationCap, Lock, LockOpen, Palette, Tags, UserRound, Users, Wallet } from "lucide-react";
+import { Bell, CalendarCheck, CheckCircle2, Smartphone, ChevronRight, CreditCard, Landmark, ShieldCheck, Share2, Database, GraduationCap, Lock, LockOpen, Palette, Tags, UserRound, Users, Wallet } from "lucide-react";
 import { db, ehCartao, novoId, type Categoria, type Conta, type Objetivo, type Perfil } from "../db";
 import { OBJETIVOS } from "../lib/perfil";
 import { supabase } from "../lib/supabase";
-import { sairDaConta, trocarEspaco, useSync } from "../lib/sync";
+import { trocarEspaco, useSync } from "../lib/sync";
+import { BotaoSair } from "../components/Sair";
 import { StatusNuvem } from "../components/Nuvem";
 import { CompartilharConta, SeuGrupo } from "../components/Grupo";
 import { mesAtual, resumoMes } from "../lib/calc";
@@ -389,7 +390,7 @@ function ContaECompartilhar({ email, userId }: { email: string; userId: string }
       )}
 
       {erro && <div className="aviso neg" role="alert">{erro}</div>}
-      <BotaoConfirmar className="btn perigo" confirmar="Toque de novo para sair" onConfirm={() => void sairDaConta()}><LogOut />Sair da conta</BotaoConfirmar>
+      <BotaoSair />
     </>
   );
 }

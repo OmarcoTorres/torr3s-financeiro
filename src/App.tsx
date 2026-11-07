@@ -4,7 +4,8 @@ import { ArrowLeftRight, BarChart3, CreditCard, LayoutGrid, MessageSquareText, M
 import type { Session } from "@supabase/supabase-js";
 import { db, removerExemplos, type Lancamento, type Perfil } from "./db";
 import { supabase, supabaseConfigurado } from "./lib/supabase";
-import { aceitarConviteGrupo, convitePendente, iniciarSync, limparConvitePendente, sairDaConta } from "./lib/sync";
+import { aceitarConviteGrupo, convitePendente, iniciarSync, limparConvitePendente } from "./lib/sync";
+import { BotaoSair } from "./components/Sair";
 import { Login } from "./components/Login";
 import { Folha, useAviso, useConfig, useDados, marcarProgresso } from "./components/ui";
 import { GuiaInstalacao } from "./components/Instalar";
@@ -89,7 +90,7 @@ export default function App() {
   if (erroSync) return (
     <div className="conteudo" style={{ maxWidth: 560 }}>
       <div className="aviso neg"><div>Não foi possível carregar sua conta agora ({erroSync}).
-        <div className="linha-botoes"><button type="button" className="btn" onClick={() => setSyncPronto(null)}>Tentar de novo</button><button type="button" className="btn fantasma" onClick={() => sairDaConta()}>Sair</button></div></div></div>
+        <div className="linha-botoes"><button type="button" className="btn" onClick={() => setSyncPronto(null)}>Tentar de novo</button><BotaoSair className="btn fantasma" simples /></div></div></div>
     </div>
   );
   if (syncPronto !== userId) return <Carregando texto="Sincronizando sua conta…" />;
