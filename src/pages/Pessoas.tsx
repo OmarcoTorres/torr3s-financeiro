@@ -10,7 +10,35 @@ import { InputNome, InputTelefone } from "../components/campos";
 export const TIPOS_PESSOA: [TipoPessoa, string][] = [["cliente", "Cliente"], ["fornecedor", "Fornecedor"], ["socio", "Sócio"], ["funcionario", "Funcionário"], ["outro", "Outro"]];
 const nomeTipo = (t: TipoPessoa) => TIPOS_PESSOA.find(([k]) => k === t)?.[1] ?? t;
 
+const normal = (n: string) => n.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+const primeiro = (n: string) => normal(n).split(/\s+/)[0] ?? "";
+
+/** Junta `origem` em `destino`: os lançamentos (e divisões) passam para o destino e a origem é apagada. */
+export async function juntarPessoas(origem: Pessoa, destino: Pessoa) {
+  await db.transaction("rw", db.pessoas, db.lancamentos, async () => {
+    await db.lancamentos.where("pessoaId").equals(origem.id).modify((l) => { l.pessoaId = destino.id; });
+    await db.lancamentos.filter((l) => !!l.divisao?.some((d) => d.pessoaId === origem.id))
+      .modify((l) => { l.divisao = l.divisao?.map((d) => (d.pessoaId === origem.id ? { ...d, pessoaId: destino.id } : d)); });
+    await db.pessoas.update(destino.id, {
+      telefone: destino.telefone || origem.telefone,
+      observacao: [destino.observacao, origem.observacao].filter(Boolean).join(" · ") || undefined,
+    });
+    await db.pessoas.delete(origem.id);
+  });
+}
+
+/** Pessoa cadastrada à mão com o mesmo nome de alguém do grupo: provável duplicata. */
+function duplicatasDoGrupo(pessoas: Pessoa[]) {
+  const doGrupo = pessoas.filter((p) => p.userId);
+  return pessoas.filter((p) => !p.userId && !p.exemplo).flatMap((p) => {
+    const alvo = doGrupo.find((g) => normal(g.nome) === normal(p.nome)) ?? doGrupo.find((g) => primeiro(g.nome) === primeiro(p.nome));
+    return alvo ? [{ origem: p, destino: alvo }] : [];
+  });
+}
+
 export function Pessoas({ dados, abrir }: { dados: DadosApp; abrir: (l: Lancamento) => void }) {
+  const aviso = useAviso();
+  const duplicadas = duplicatasDoGrupo(dados.pessoas);
   const [ficha, setFicha] = useState<Pessoa | null>(null);
   const [editar, setEditar] = useState<Partial<Pessoa> | null>(null);
   const [busca, setBusca] = useState("");
@@ -25,13 +53,27 @@ export function Pessoas({ dados, abrir }: { dados: DadosApp; abrir: (l: Lancamen
         <input className="entrada" type="search" placeholder="Buscar pessoa" value={busca} onChange={(e) => setBusca(e.target.value)} aria-label="Buscar pessoa" id="busca-pessoa" />
         <button type="button" className="btn pri" onClick={() => setEditar({ tipo: "cliente" })}><UserPlus />Nova</button>
       </div>
+      {duplicadas.map(({ origem, destino }) => {
+        const n = dados.lanc.filter((l) => l.pessoaId === origem.id || l.divisao?.some((d) => d.pessoaId === origem.id)).length;
+        return (
+          <div key={origem.id} className="aviso warn" role="status">
+            <Users />
+            <div>
+              <b>{destino.nome.split(" ")[0]} aparece duas vezes.</b> Uma é a do seu grupo (ligada ao app dela) e a outra, “{origem.nome}”, foi cadastrada à mão{n ? ` e tem ${n} lançamento${n === 1 ? "" : "s"}` : ""}.
+              <div className="linha-botoes">
+                <button type="button" className="btn pri" onClick={async () => { await juntarPessoas(origem, destino); aviso(`Pronto: ficou uma ${destino.nome.split(" ")[0]} só${n ? `, com os ${n} lançamento${n === 1 ? "" : "s"}` : ""}.`); }}>Juntar</button>
+              </div>
+            </div>
+          </div>
+        );
+      })}
       <section className="card" style={{ gap: 0 }}>
         {lista.length === 0 ? (
           <div className="vazio"><Users /><div>Nenhuma pessoa cadastrada. Cadastre clientes, fornecedores e sócios para ver quanto cada um deve.</div></div>
         ) : lista.map(({ p, s }) => (
           <button type="button" key={p.id} className="item" style={{ gridTemplateColumns: "38px 1fr auto" }} onClick={() => setFicha(p)}>
             <span className="ic" style={{ background: "var(--surface-2)", color: "var(--ink)", fontWeight: 800 }}>{p.nome.slice(0, 1).toUpperCase()}</span>
-            <div><div className="tt">{p.nome}</div><div className="meta"><span>{nomeTipo(p.tipo)}</span>{p.exemplo && <span className="pill ex">exemplo</span>}</div></div>
+            <div><div className="tt">{p.nome}</div><div className="meta"><span>{p.userId ? "do seu grupo" : nomeTipo(p.tipo)}</span>{p.exemplo && <span className="pill ex">exemplo</span>}</div></div>
             <div className="val">
               {s.liquido === 0 ? <span className="muted" style={{ fontSize: ".82rem" }}>sem pendências</span> : (
                 <>
@@ -101,7 +143,8 @@ function EditarPessoa({ p, fechar, dados }: { p: Partial<Pessoa> | null; fechar:
 
   async function salvar() {
     if (!nome.trim()) { aviso("Escreva o nome."); return; }
-    const reg: Pessoa = { id: p?.id ?? novoId(), nome: nome.trim(), tipo, telefone: telefone.trim() || undefined, observacao: obs.trim() || undefined };
+    // Mantém o que a tela não mostra (ex.: userId da pessoa do grupo, que liga ao app dela).
+    const reg: Pessoa = { ...(p as Pessoa), id: p?.id ?? novoId(), nome: nome.trim(), tipo, telefone: telefone.trim() || undefined, observacao: obs.trim() || undefined };
     await db.pessoas.put(reg);
     aviso(p?.id ? "Pessoa atualizada." : "Pessoa cadastrada.");
     fechar();
