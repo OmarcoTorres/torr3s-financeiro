@@ -9,6 +9,7 @@ import { exportarBackup } from "./lib/backup";
 import { BotaoSair } from "./components/Sair";
 import { ConvitesRecebidos } from "./components/Grupo";
 import { CelebracaoCoracoes } from "./components/Coracoes";
+import { PedidosParaMim } from "./components/PedidosPix";
 import { recarregarGrupos, useGrupos, useTemaAtivo } from "./lib/grupos";
 import { frase } from "./lib/tema";
 import { Login } from "./components/Login";
@@ -240,6 +241,7 @@ function Painel({ email, userId }: { email: string; userId: string }) {
         </header>
 
         <ConvitesRecebidos />
+        <PedidosParaMim />
         {aba === "inicio" && <Inicio dados={dados} perfil={perfil} userId={userId} abrir={abrir} novo={novo} lerConta={() => setLerAberto(true)} perguntar={() => setPerguntaAberta(true)} ir={ir} />}
         {aba === "transacoes" && <Lancamentos dados={dados} abrir={abrir} />}
         {aba === "cartoes" && <Cartoes dados={dados} abrir={abrir} pagar={(r) => { setFotoNova(undefined); setRascunho(r); }} />}

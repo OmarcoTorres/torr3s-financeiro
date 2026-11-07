@@ -5,6 +5,7 @@ import { frase, primeiroNome, temaDe } from "../lib/tema";
 import { supabase } from "../lib/supabase";
 import { CaixinhaDoGrupo } from "../components/Caixinha";
 import { DepositarPix, PainelPix } from "../components/PixDireto";
+import { PedirPix } from "../components/PedidosPix";
 import { celebrarDeposito, mensagemDeCarinho } from "../components/Coracoes";
 import { useCaixinhasEstado } from "../lib/caixinha";
 import { db, novoId, type Meta } from "../db";
@@ -80,6 +81,7 @@ export function Metas({ dados }: { dados: DadosApp }) {
         <div className="kpi-card"><span className="rotulo">Somando as metas</span><span className="v num">{dinheiro(alvo)}</span></div>
       </div>
       {caixinhas.caixinhas.length > 0 ? <CaixinhaDoGrupo meuId={meuId} /> : <DepositarPix metasMinhas={dados.metas} meuId={meuId} />}
+      <PedirPix meuId={meuId} />
       {tema && (grupos.metas.length > 0 || grupos.grupos.length > 0) && (
         <section className="aviso dica largo" style={{ borderColor: tema.cor }}>
           <Heart style={{ color: tema.cor }} />
