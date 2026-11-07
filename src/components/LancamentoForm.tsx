@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Camera, Lock, Trash2 } from "lucide-react";
+import { rotuloPessoa } from "../pages/Pessoas";
 import { db, ehCartao, novoId, type Divisao, type Lancamento, type Status, type Tipo } from "../db";
 import { hoje, mesDe, mesFechado, somarMeses } from "../lib/calc";
 import { dinheiro, lerValor, mesExtenso, numeroBR } from "../lib/format";
@@ -217,7 +218,7 @@ export function LancamentoForm({ rascunho, fotoNova, fechar, dados }: { rascunho
             <Campo rotulo="Pessoa">
               <select id="f-pessoa" value={pessoaId} onChange={(e) => { setPessoaId(e.target.value); if (dados.pessoas.find((p) => p.id === e.target.value)?.userId) setCompartilhado(true); }}>
                 <option value="">Nenhuma</option>
-                {dados.pessoas.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
+                {dados.pessoas.map((p) => <option key={p.id} value={p.id}>{rotuloPessoa(p, dados.pessoas)}</option>)}
               </select>
             </Campo>
           )}
@@ -263,7 +264,7 @@ export function LancamentoForm({ rascunho, fotoNova, fechar, dados }: { rascunho
                   <div key={i} className="duas" style={{ gridTemplateColumns: "1fr 110px auto", alignItems: "center" }}>
                     <select aria-label="Pessoa" value={p.pessoaId} onChange={(e) => setPartes(partes.map((x, j) => (j === i ? { ...x, pessoaId: e.target.value } : x)))} className="btn" style={{ fontWeight: 600 }}>
                       <option value="">Pessoa</option>
-                      {dados.pessoas.map((x) => <option key={x.id} value={x.id}>{x.nome}</option>)}
+                      {dados.pessoas.map((x) => <option key={x.id} value={x.id}>{rotuloPessoa(x, dados.pessoas)}</option>)}
                     </select>
                     {modoDiv === "pct"
                       ? <InputPorcentagem aria-label="Porcentagem" placeholder="%" className="entrada" value={p.txt} onChange={(v) => setPartes(partes.map((x, j) => (j === i ? { ...x, txt: v } : x)))} />

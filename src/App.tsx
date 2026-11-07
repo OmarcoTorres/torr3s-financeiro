@@ -31,6 +31,7 @@ import { Lancamentos } from "./pages/Lancamentos";
 import { Relatorios } from "./pages/Relatorios";
 import { Pessoas } from "./pages/Pessoas";
 import { Mais, type Secao } from "./pages/Mais";
+import { juntarDuplicadasAutomatico } from "./pages/Pessoas";
 import { useAvisosNaoLidos } from "./lib/avisos";
 
 type Aba = "inicio" | "transacoes" | "cartoes" | "metas" | "relatorios" | "pessoas" | "mais";
@@ -182,6 +183,15 @@ function Painel({ email, userId }: { email: string; userId: string }) {
       .catch((e) => { limparConvitePendente(); aviso(String((e as Error).message)); });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [perfil]);
+  // Pessoas duplicadas com o mesmo nome (ex.: "Rita" do grupo + "Rita" cadastrada à mão) viram uma só.
+  const assinaturaPessoas = dados.pronto ? dados.pessoas.map((p) => `${p.id}:${p.nome}:${p.userId ?? ""}`).sort().join("|") : "";
+  useEffect(() => {
+    if (!assinaturaPessoas) return;
+    juntarDuplicadasAutomatico(dados.pessoas, dados.lanc)
+      .then((nomes) => { if (nomes.length) aviso(`Juntei as pessoas repetidas: ${nomes.join(", ")}. Os lançamentos ficaram todos numa só.`); })
+      .catch((e) => console.error("juntar pessoas", e));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [assinaturaPessoas]);
   // Versões antigas criavam lançamentos de exemplo: limpa ao abrir, o app começa sempre zerado.
   useEffect(() => { removerExemplos().catch(() => undefined); }, []);
   useEffect(() => { history.replaceState(null, "", `#${aba}`); window.scrollTo(0, 0); if (aba === "relatorios") marcarProgresso("relatorio"); }, [aba]);

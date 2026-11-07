@@ -27,11 +27,42 @@ export async function juntarPessoas(origem: Pessoa, destino: Pessoa) {
   });
 }
 
+/**
+ * Junta sozinho as pessoas com o MESMO nome (ignorando acento e maiúsculas):
+ * fica a ligada à conta do grupo (ou, se nenhuma for, a com mais lançamentos) e as outras são incorporadas.
+ * Não junta quando há contas diferentes do grupo com o mesmo nome (podem ser pessoas distintas).
+ * Devolve os nomes que foram unificados.
+ */
+export async function juntarDuplicadasAutomatico(pessoas: Pessoa[], lanc: Lancamento[]) {
+  const usos = (id: string) => lanc.filter((l) => l.pessoaId === id || l.divisao?.some((d) => d.pessoaId === id)).length;
+  const porNome = new Map<string, Pessoa[]>();
+  for (const p of pessoas) if (!p.exemplo && p.nome.trim()) porNome.set(normal(p.nome), [...(porNome.get(normal(p.nome)) ?? []), p]);
+  const juntadas: string[] = [];
+  for (const lista of porNome.values()) {
+    if (lista.length < 2) continue;
+    const contas = new Set(lista.filter((p) => p.userId).map((p) => p.userId));
+    if (contas.size > 1) continue;
+    const destino = [...lista].sort((a, b) =>
+      Number(!!b.userId) - Number(!!a.userId) || Number(b.id.startsWith("grupo-")) - Number(a.id.startsWith("grupo-")) || usos(b.id) - usos(a.id) || a.id.localeCompare(b.id))[0];
+    for (const origem of lista) if (origem.id !== destino.id) await juntarPessoas(origem, { ...destino, userId: destino.userId ?? origem.userId });
+    if (!destino.userId) { const u = lista.find((p) => p.userId)?.userId; if (u) await db.pessoas.update(destino.id, { userId: u }); }
+    juntadas.push(destino.nome.split(" ")[0]);
+  }
+  return juntadas;
+}
+
+/** Nome para listas de escolha: se houver dois iguais, diz qual é qual (em vez de "Rita" e "Rita"). */
+export function rotuloPessoa(p: Pessoa, todas: Pessoa[]) {
+  const iguais = todas.filter((x) => normal(x.nome) === normal(p.nome));
+  if (iguais.length < 2) return p.nome;
+  return `${p.nome} · ${p.userId ? "do grupo" : "cadastro manual"}`;
+}
+
 /** Pessoa cadastrada à mão com o mesmo nome de alguém do grupo: provável duplicata. */
 function duplicatasDoGrupo(pessoas: Pessoa[]) {
   const doGrupo = pessoas.filter((p) => p.userId);
   return pessoas.filter((p) => !p.userId && !p.exemplo).flatMap((p) => {
-    const alvo = doGrupo.find((g) => normal(g.nome) === normal(p.nome)) ?? doGrupo.find((g) => primeiro(g.nome) === primeiro(p.nome));
+    const alvo = doGrupo.find((g) => normal(g.nome) !== normal(p.nome) && primeiro(g.nome) === primeiro(p.nome));
     return alvo ? [{ origem: p, destino: alvo }] : [];
   });
 }
