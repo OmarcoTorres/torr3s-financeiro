@@ -8,6 +8,7 @@ import { criarFilaMiddleware } from "./filaMiddleware";
 import { limparGruposLocais } from "./grupos";
 import { limparCaixinhasLocais } from "./caixinha";
 import { limparPedidosLocais } from "./pedidosPix";
+import { limparChavePixLocal } from "./chavePix";
 
 /**
  * Sincronização com o Supabase.
@@ -527,5 +528,6 @@ export async function sairDaConta(opcoes: { descartarPendentes?: boolean } = {})
   limparGruposLocais();
   limparCaixinhasLocais();
   limparPedidosLocais();
+  limparChavePixLocal();
   return { saiu: true };
 }
