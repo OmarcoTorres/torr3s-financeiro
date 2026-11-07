@@ -137,6 +137,8 @@ export function LancamentoForm({ rascunho, fotoNova, fechar, dados }: { rascunho
     const parcelado = repetir === "parcelado";
     const unit = parcelado ? Math.floor(valor / n) : valor;
     const sobra = parcelado ? valor - unit * n : 0;
+    // No cartão a dívida é a fatura: as parcelas futuras entram como compra feita (paga), não como conta a pagar.
+    const noCartao = ehCartao(dados.contas.find((c) => c.id === contaId));
     const itens: Lancamento[] = Array.from({ length: n }, (_, i) => ({
       ...base,
       id: novoId(),
@@ -144,7 +146,7 @@ export function LancamentoForm({ rascunho, fotoNova, fechar, dados }: { rascunho
       valor: unit + (i === 0 ? sobra : 0),
       data: somarMeses(data, i),
       vencimento: vencimento ? somarMeses(vencimento, i) : undefined,
-      status: i === 0 ? status : "pendente",
+      status: noCartao ? "pago" : i === 0 ? status : "pendente",
       fotoId: i === 0 ? fotoId : undefined,
       divisao: i === 0 ? base.divisao : undefined,
       grupo,
