@@ -73,6 +73,11 @@ export function Metas({ dados }: { dados: DadosApp }) {
   const dosOutros = grupos.metas.filter((m) => !m.minha);
   const total = metas.reduce((a, m) => a + m.guardado + extra(m), 0);
   const alvo = metas.reduce((a, m) => a + m.alvo, 0);
+  // Juntos: todas as metas compartilhadas (as minhas, com o valor local mais recente, e as dos outros).
+  const compartilhadas = grupos.metas.map((m) => ({ m, partes: partesDaMeta(m, m.minha ? dados.metas.find((x) => x.id === m.id)?.guardado : undefined) }));
+  const partesJuntos = juntarPartes(compartilhadas.map((c) => c.partes));
+  const totalJuntos = partesJuntos.reduce((a, p) => a + p.valor, 0);
+  const alvoJuntos = compartilhadas.reduce((a, c) => a + c.m.alvo, 0);
 
   return (
     <>
@@ -80,6 +85,17 @@ export function Metas({ dados }: { dados: DadosApp }) {
         <div className="kpi-card"><span className="rotulo">Já guardado</span><span className="v num pos">{dinheiro(total)}</span></div>
         <div className="kpi-card"><span className="rotulo">Somando as metas</span><span className="v num">{dinheiro(alvo)}</span></div>
       </div>
+      {compartilhadas.length > 0 && (
+        <section className="card" style={{ borderTop: tema ? `4px solid ${tema.cor}` : undefined }}>
+          <div className="cab"><h2>Juntos</h2><Heart size={18} style={{ color: tema?.cor }} /></div>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
+            <b className="num" style={{ fontFamily: "var(--display)", fontSize: "1.8rem" }}>{dinheiro(totalJuntos)}</b>
+            <span className="muted num">de {dinheiro(alvoJuntos)} · {compartilhadas.length} {compartilhadas.length === 1 ? "meta" : "metas"} {compartilhadas.length === 1 ? "compartilhada" : "compartilhadas"}</span>
+          </div>
+          <BarraDividida partes={partesJuntos} alvo={alvoJuntos} meuId={meuId} corTema={tema?.cor ?? "#d6457a"} />
+          <span className="muted" style={{ fontSize: ".8rem" }}>Cada um deposita na própria conta; aqui o app soma tudo o que vocês guardaram para as metas em comum.</span>
+        </section>
+      )}
       {caixinhas.caixinhas.length > 0 ? <CaixinhaDoGrupo meuId={meuId} /> : <DepositarPix metasMinhas={dados.metas} meuId={meuId} />}
       <PedirPix meuId={meuId} />
       {tema && (grupos.metas.length > 0 || grupos.grupos.length > 0) && (
@@ -130,6 +146,55 @@ function ItemMetaGrupo({ m, abrir }: { m: MetaGrupo; abrir: () => void }) {
       </div>
       <div className="trilho-prog"><i style={{ width: `${r.pct}%`, background: m.cor }} /></div>
     </button>
+  );
+}
+
+// ---------- Divisão do que cada um guardou (metas compartilhadas) ----------
+type Parte = { userId: string; nome: string; valor: number };
+const CORES_PESSOAS = ["#6c4ed8", "#2f8f83", "#c9771f", "#3d7be0"];
+
+/** Quanto cada pessoa colocou numa meta compartilhada: o dono (guardado da meta) + aportes de cada um. */
+function partesDaMeta(m: MetaGrupo, guardadoLocal?: number): Parte[] {
+  const mapa = new Map<string, Parte>();
+  const somar = (userId: string, nome: string, v: number) => {
+    const p = mapa.get(userId) ?? { userId, nome, valor: 0 };
+    p.valor += v; mapa.set(userId, p);
+  };
+  somar(m.dono_id, m.dono_nome, guardadoLocal ?? m.guardado);
+  for (const a of m.aportes) somar(a.user_id, a.nome, a.valor);
+  return [...mapa.values()].filter((p) => p.valor > 0);
+}
+function juntarPartes(listas: Parte[][]): Parte[] {
+  const mapa = new Map<string, Parte>();
+  for (const l of listas) for (const p of l) { const x = mapa.get(p.userId) ?? { ...p, valor: 0 }; x.valor += p.valor; mapa.set(p.userId, x); }
+  return [...mapa.values()];
+}
+/** Você primeiro (na cor do tema), depois os outros. */
+function corDe(partes: Parte[], meuId: string | undefined, corTema: string) {
+  const ordem = [...partes].sort((a, b) => (a.userId === meuId ? -1 : b.userId === meuId ? 1 : a.nome.localeCompare(b.nome)));
+  return { ordem, cor: (id: string) => (id === meuId ? corTema : CORES_PESSOAS[Math.max(0, ordem.filter((x) => x.userId !== meuId).findIndex((x) => x.userId === id)) % CORES_PESSOAS.length]) };
+}
+
+/** Barra da meta dividida por pessoa (cada um com sua cor) + legenda "Você R$ X · Rita R$ Y". */
+function BarraDividida({ partes, alvo, meuId, corTema }: { partes: Parte[]; alvo: number; meuId?: string; corTema: string }) {
+  const { ordem, cor } = corDe(partes, meuId, corTema);
+  const total = partes.reduce((a, p) => a + p.valor, 0);
+  return (
+    <div style={{ display: "grid", gap: 6 }}>
+      <div className="trilho-prog" style={{ display: "flex", overflow: "hidden" }} role="img"
+        aria-label={ordem.map((p) => `${p.userId === meuId ? "Você" : primeiroNome(p.nome)} ${dinheiro(p.valor)}`).join(", ")}>
+        {ordem.map((p) => <i key={p.userId} style={{ position: "static", display: "block", height: "100%", width: `${alvo ? Math.min(100, (p.valor / alvo) * 100) : 0}%`, background: cor(p.userId), borderRadius: 0 }} />)}
+      </div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 14px", fontSize: ".82rem" }}>
+        {ordem.map((p) => (
+          <span key={p.userId} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+            <i aria-hidden style={{ width: 10, height: 10, borderRadius: 3, background: cor(p.userId), display: "inline-block" }} />
+            {p.userId === meuId ? "Você" : primeiroNome(p.nome)} <b className="num">{dinheiro(p.valor)}</b>
+            {total > 0 && <span className="muted num">({Math.round((p.valor / total) * 100)}%)</span>}
+          </span>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -188,7 +253,7 @@ function DetalheMetaGrupo({ m, meuId, fechar }: { m?: MetaGrupo; meuId?: string;
       <span className="muted" style={{ fontSize: ".86rem" }}>Meta de {primeiroNome(m.dono_nome)}, compartilhada com o grupo. {frase(tema.incentivos)}</span>
       <div className="bloco">
         <div className="cab"><span className="rotulo">Progresso</span><b className="num" style={{ fontFamily: "var(--display)", fontSize: "1.2rem" }}>{Math.round(r.pct)}%</b></div>
-        <div className="trilho-prog"><i style={{ width: `${r.pct}%`, background: m.cor }} /></div>
+        <BarraDividida partes={partesDaMeta(m)} alvo={m.alvo} meuId={meuId} corTema={tema.cor} />
         <div className="cab"><span className="num">{dinheiro(m.guardado + somaGrupo)} de {dinheiro(m.alvo)}</span><span className="muted num">falta {dinheiro(r.falta)}</span></div>
         {r.porMes ? <span className="muted" style={{ fontSize: ".86rem" }}>Para chegar até {mesExtenso(m.prazo!)}: {dinheiro(r.porMes)} por mês, somando todo mundo.</span> : null}
       </div>
@@ -233,9 +298,9 @@ function DetalheMeta({ m: original, fechar, editar }: { m: Meta; fechar: () => v
       {nomeGrupo && <span className="muted" style={{ fontSize: ".86rem" }}><Users size={14} style={{ verticalAlign: "-2px" }} /> Compartilhada com “{nomeGrupo}”: o grupo vê e guarda junto.</span>}
       <div className="bloco">
         <div className="cab"><span className="rotulo">Progresso</span><b className="num" style={{ fontFamily: "var(--display)", fontSize: "1.2rem" }}>{Math.round(r.pct)}%</b></div>
-        <div className="trilho-prog"><i style={{ width: `${r.pct}%`, background: m.cor }} /></div>
+        {doGrupo ? <BarraDividida partes={partesDaMeta(doGrupo, m.guardado)} alvo={m.alvo} meuId={meuId} corTema={tema?.cor ?? m.cor} />
+          : <div className="trilho-prog"><i style={{ width: `${r.pct}%`, background: m.cor }} /></div>}
         <div className="cab"><span className="num">{dinheiro(m.guardado + somaGrupo)} de {dinheiro(m.alvo)}</span><span className="muted num">falta {dinheiro(r.falta)}</span></div>
-        {somaGrupo > 0 && <span className="muted num" style={{ fontSize: ".84rem" }}>Você: {dinheiro(m.guardado)} · grupo: {dinheiro(somaGrupo)}</span>}
         {r.porMes ? <span className="muted" style={{ fontSize: ".86rem" }}>Para chegar até {mesExtenso(m.prazo!)}: guarde {dinheiro(r.porMes)} por mês.</span> : null}
       </div>
       <Campo rotulo="Valor"><InputValor id="mt-valor" value={valor} onChange={(v) => { setValor(v); setPix(null); }} /></Campo>
