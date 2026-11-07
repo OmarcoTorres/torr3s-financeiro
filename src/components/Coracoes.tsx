@@ -31,7 +31,7 @@ export function mensagemDeCarinho(valor: number, metaNome?: string, falta?: numb
 
 export function CelebracaoCoracoes() {
   const c = useSyncExternalStore((f) => { ouvintes.add(f); return () => ouvintes.delete(f); }, () => atual);
-  const [pct, setPct] = useState(0);
+  const [t, setT] = useState(0); // 0 → 1: anda o valor do Pix, o total e a barra da meta juntos
   const reduzir = typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches;
   const temMeta = !!(c?.alvo && c.alvo > 0);
   const de = temMeta ? Math.min(100, ((c!.antes ?? 0) / c!.alvo!) * 100) : 0;
@@ -44,15 +44,25 @@ export function CelebracaoCoracoes() {
 
   useEffect(() => {
     if (!c) return;
-    setPct(de);
-    const t1 = window.setTimeout(() => setPct(para), reduzir ? 0 : 900);
-    const t2 = window.setTimeout(fechar, reduzir ? 4500 : 6500);
+    let quadro = 0;
+    const DURACAO = 1800, ESPERA = 350;
+    const inicio = performance.now() + ESPERA;
+    const passo = (agora: number) => {
+      const x = Math.min(1, Math.max(0, (agora - inicio) / DURACAO));
+      setT(1 - Math.pow(1 - x, 3)); // desacelera no fim
+      if (x < 1) quadro = requestAnimationFrame(passo);
+    };
+    if (reduzir) setT(1); else { setT(0); quadro = requestAnimationFrame(passo); }
+    const t2 = window.setTimeout(fechar, reduzir ? 4500 : 7000);
     try { navigator.vibrate?.([30, 60, 30]); } catch { /* sem vibração */ }
-    return () => { window.clearTimeout(t1); window.clearTimeout(t2); };
+    return () => { cancelAnimationFrame(quadro); window.clearTimeout(t2); };
   }, [c?.chave]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!c) return null;
   const cor = c.cor ?? "#d6457a";
+  const pct = de + (para - de) * t;
+  const valorAgora = Math.round(c.valor * t);
+  const totalAgora = Math.round((c.antes ?? 0) + ((c.depois ?? 0) - (c.antes ?? 0)) * t);
   return (
     <div className="celebra" role="dialog" aria-live="polite" aria-label="Depósito registrado" onClick={fechar}>
       {coracoes.map((h) => (
@@ -61,13 +71,13 @@ export function CelebracaoCoracoes() {
       ))}
       <div className="celebra-cartao" onClick={(e) => e.stopPropagation()}>
         <Heart className="celebra-pulso" fill={cor} color={cor} size={44} aria-hidden />
-        <b className="num" style={{ fontFamily: "var(--display)", fontSize: "1.6rem" }}>+{dinheiro(c.valor)}</b>
+        <b className="num" style={{ fontFamily: "var(--display)", fontSize: "1.6rem" }} aria-label={`Mais ${dinheiro(c.valor)}`}>+{dinheiro(valorAgora)}</b>
         <p style={{ whiteSpace: "pre-line", textAlign: "center", margin: 0 }}>{c.mensagem}</p>
         {temMeta && (
           <div style={{ display: "grid", gap: 6, width: "100%" }}>
             <div style={{ display: "flex", justifyContent: "space-between", gap: 8, fontSize: ".85rem" }}><span>{c.metaNome}</span><b className="num">{Math.round(pct)}%</b></div>
-            <div className="trilho-prog celebra-trilho"><i style={{ width: `${pct}%`, background: cor, transition: reduzir ? "none" : "width 1.6s cubic-bezier(.2,.8,.2,1)" }} /></div>
-            <span className="muted num" style={{ fontSize: ".8rem", textAlign: "center" }}>{dinheiro(c.depois ?? 0)} de {dinheiro(c.alvo!)}</span>
+            <div className="trilho-prog celebra-trilho"><i style={{ width: `${pct}%`, background: cor, transition: "none" }} /></div>
+            <span className="muted num" style={{ fontSize: ".8rem", textAlign: "center" }}>{dinheiro(totalAgora)} de {dinheiro(c.alvo!)}</span>
           </div>
         )}
         <button type="button" className="btn pri" onClick={fechar}>💕 Obrigado</button>
