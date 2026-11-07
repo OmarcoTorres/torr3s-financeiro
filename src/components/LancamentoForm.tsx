@@ -40,6 +40,9 @@ export function LancamentoForm({ rascunho, fotoNova, fechar, dados }: { rascunho
   const [repetir, setRepetir] = useState<Repetir>("nao");
   const [vezes, setVezes] = useState("2");
   const [dividir, setDividir] = useState(false);
+  const [maisOpcoes, setMaisOpcoes] = useState(false);
+  // "Mais opções" abre sozinho quando o lançamento já usa algum desses campos (editar, foto lida pela IA etc.).
+  useEffect(() => { if (dividir || observacao || foto) setMaisOpcoes(true); }, [dividir, observacao, foto]);
   const [modoDiv, setModoDiv] = useState<"valor" | "pct">("valor");
   const [partes, setPartes] = useState<{ pessoaId: string; txt: string }[]>([]);
   const [erro, setErro] = useState("");
@@ -58,7 +61,7 @@ export function LancamentoForm({ rascunho, fotoNova, fechar, dados }: { rascunho
     setContaId(r.contaId ?? contaPadrao(dados.contas));
     setContaDestinoId(r.contaDestinoId ?? "");
     setPessoaId(r.pessoaId ?? "");
-    setObservacao(r.observacao ?? "");
+    setObservacao(r.observacao ?? ""); setMaisOpcoes(!!(r.observacao || r.fotoId || r.divisao?.length));
     setCompartilhado(!!r.compartilhado);
     setRepetir("nao"); setVezes("2"); setErro("");
     setDividir(!!r.divisao?.length); setModoDiv("valor");
@@ -238,6 +241,18 @@ export function LancamentoForm({ rascunho, fotoNova, fechar, dados }: { rascunho
           </div>
         )}
 
+        {tipo !== "transferencia" && temGrupo && (
+          <label className="linha-toggle" style={{ background: "var(--surface-2)", borderRadius: 16, padding: "12px 14px", borderBottom: 0 }}>
+            <span><b>Compartilhar com meu grupo</b><small>{contaCompartilhada
+              ? `A conta “${contaCompartilhada.nome}” é compartilhada: ${nomesGrupo || "o grupo"} já ${nomesGrupo.includes(",") ? "veem" : "vê"} tudo dela.`
+              : nomesGrupo ? `${nomesGrupo} ${nomesGrupo.includes(",") ? "veem" : "vê"} esta ${tipo === "receita" ? "receita" : "despesa"}, sem poder editar.` : "As pessoas do seu grupo veem este lançamento, sem poder editar."}</small></span>
+            <input type="checkbox" className="interruptor" checked={compartilhado || !!contaCompartilhada} disabled={!!contaCompartilhada} onChange={(e) => setCompartilhado(e.target.checked)} />
+          </label>
+        )}
+
+        <details className="mais-opcoes" open={maisOpcoes} onToggle={(e) => setMaisOpcoes(e.currentTarget.open)}>
+          <summary>Mais opções <small className="muted">dividir entre pessoas, observação, foto</small></summary>
+          <div style={{ display: "grid", gap: 14, marginTop: 12 }}>
         {tipo !== "transferencia" && dados.pessoas.length > 0 && (
           <div className="card" style={{ padding: 12 }}>
             <label className="chk"><input type="checkbox" checked={dividir} onChange={(e) => { setDividir(e.target.checked); if (e.target.checked && !partes.length) setPartes([{ pessoaId: "", txt: "" }]); }} />Dividir entre pessoas</label>
@@ -272,15 +287,6 @@ export function LancamentoForm({ rascunho, fotoNova, fechar, dados }: { rascunho
           </div>
         )}
 
-        {tipo !== "transferencia" && temGrupo && (
-          <label className="linha-toggle" style={{ background: "var(--surface-2)", borderRadius: 16, padding: "12px 14px", borderBottom: 0 }}>
-            <span><b>Compartilhar com meu grupo</b><small>{contaCompartilhada
-              ? `A conta “${contaCompartilhada.nome}” é compartilhada: ${nomesGrupo || "o grupo"} já ${nomesGrupo.includes(",") ? "veem" : "vê"} tudo dela.`
-              : nomesGrupo ? `${nomesGrupo} ${nomesGrupo.includes(",") ? "veem" : "vê"} esta ${tipo === "receita" ? "receita" : "despesa"}, sem poder editar.` : "As pessoas do seu grupo veem este lançamento, sem poder editar."}</small></span>
-            <input type="checkbox" className="interruptor" checked={compartilhado || !!contaCompartilhada} disabled={!!contaCompartilhada} onChange={(e) => setCompartilhado(e.target.checked)} />
-          </label>
-        )}
-
         <Campo rotulo="Observação"><textarea id="f-obs" value={observacao} onChange={(e) => setObservacao(e.target.value)} maxLength={1000} /></Campo>
 
         <div className="campo">
@@ -293,6 +299,8 @@ export function LancamentoForm({ rascunho, fotoNova, fechar, dados }: { rascunho
             {foto && <button type="button" className="btn fantasma" onClick={() => setFoto(undefined)}>Remover foto</button>}
           </div>
         </div>
+          </div>
+        </details>
       </fieldset>
 
       {erro && <div className="aviso neg" role="alert">{erro}</div>}

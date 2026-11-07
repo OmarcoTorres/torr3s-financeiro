@@ -1,11 +1,11 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { AlertTriangle, CalendarCheck, Check, ChevronRight, CreditCard, Eye, EyeOff, Lightbulb, MessageSquareText, PieChart, ScanLine, Target } from "lucide-react";
 import { ehCartao, type Lancamento, type Perfil } from "../db";
 import { hoje, mesAtual, saldosContas, situacao, somarDias, totais } from "../lib/calc";
-import { mesExtenso } from "../lib/format";
+import { dinheiro, mesExtenso } from "../lib/format";
 import { OBJETIVOS, dicaDoDia } from "../lib/perfil";
 import { ItemCompartilhado, ItemLancamento } from "../components/ItemLancamento";
-import { OcultarValores, useConfig, useDinheiro, useTextoSemValores, type DadosApp } from "../components/ui";
+import { MASCARA, useConfig, useDinheiro, useTextoSemValores, type DadosApp } from "../components/ui";
 import { MiniCartao, situacaoCartao } from "./Cartoes";
 import { ItemMeta } from "./Metas";
 import { useTemaAtivo } from "../lib/grupos";
@@ -23,9 +23,8 @@ export function Inicio({ dados, perfil, userId, abrir, novo, lerConta, perguntar
   // Valores ocultos por padrão; o app lembra a última escolha neste aparelho.
   const [ocultar, setOcultar] = useConfig("ocultarValores", true);
   return (
-    <OcultarValores value={ocultar}>
-      <Painel dados={dados} perfil={perfil} userId={userId} abrir={abrir} novo={novo} lerConta={lerConta} perguntar={perguntar} ir={ir} prog={prog} setProg={setProg} ocultar={ocultar} alternar={() => setOcultar(!ocultar)} />
-    </OcultarValores>
+    // O olho esconde só os saldos do topo; o resto do painel mostra os números (senão a tela abre sem informação).
+    <Painel dados={dados} perfil={perfil} userId={userId} abrir={abrir} novo={novo} lerConta={lerConta} perguntar={perguntar} ir={ir} prog={prog} setProg={setProg} ocultar={ocultar} alternar={() => setOcultar(!ocultar)} />
   );
 }
 
@@ -35,6 +34,7 @@ function Painel({ dados, perfil, userId, abrir, novo, lerConta, perguntar, ir, p
 }) {
   const $ = useDinheiro();
   const semValores = useTextoSemValores();
+  const k = (c: number) => (ocultar ? MASCARA : dinheiro(c)); // só os cartões de saldo do topo
   const h = hoje(), mes = mesAtual();
   const contas = dados.contas.filter((c) => !ehCartao(c));
   const cartoes = dados.contas.filter(ehCartao);
@@ -71,6 +71,8 @@ function Painel({ dados, perfil, userId, abrir, novo, lerConta, perguntar, ir, p
   ];
   const feitos = passos.filter((p) => p.feito).length;
   const mostrarPassos = !prog.oculto && feitos < passos.length;
+  const proximoPasso = passos.find((p) => !p.feito);
+  const [passosAbertos, setPassosAbertos] = useState(false);
   const aVencer = [...atrasados.slice(0, 3), ...proximos];
 
   return (
@@ -83,11 +85,11 @@ function Painel({ dados, perfil, userId, abrir, novo, lerConta, perguntar, ir, p
               {ocultar ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>
           </div>
-          <span className="v num">{$(saldo)}</span>
+          <span className="v num">{k(saldo)}</span>
         </div>
-        <div className="kpi-card"><span className="rotulo">Receitas</span><span className="v num pos">{$(t.entradas)}</span></div>
-        <div className="kpi-card"><span className="rotulo">Despesas</span><span className="v num neg">{$(t.saidas)}</span></div>
-        <div className="kpi-card"><span className="rotulo">Faturas</span><span className="v num">{$(faturas)}</span></div>
+        <div className="kpi-card"><span className="rotulo">Receitas</span><span className="v num pos">{k(t.entradas)}</span></div>
+        <div className="kpi-card"><span className="rotulo">Despesas</span><span className="v num neg">{k(t.saidas)}</span></div>
+        <div className="kpi-card"><span className="rotulo">Faturas</span><span className="v num">{k(faturas)}</span></div>
       </div>
 
       <div className="atalhos">
@@ -97,24 +99,48 @@ function Painel({ dados, perfil, userId, abrir, novo, lerConta, perguntar, ir, p
       </div>
 
       <div className="grade-dash">
-        {mostrarPassos && (
+        <section className="card largo">
+          <div className="cab"><h2>{atrasados.length ? "Precisa de atenção" : "Contas a vencer"}</h2><span className="chip">próximos 7 dias</span></div>
+          {atrasados.length > 0 && (
+            <div className="aviso neg"><AlertTriangle /><div><b>{atrasados.length === 1 ? "1 conta atrasada" : `${atrasados.length} contas atrasadas`}</b> · {$(atrasados.reduce((a, l) => a + l.valor, 0))}</div></div>
+          )}
+          {aVencer.length ? <div className="lista">{aVencer.map((l) => <ItemLancamento key={l.id} l={l} dados={dados} abrir={abrir} mostrarData />)}</div>
+            : <p className="muted">Tudo em dia: nada vencendo nesta semana. ✓</p>}
+        </section>
+
+        {temaVale && tema && IconeTema && (
+          <section className="aviso dica largo" style={{ background: `color-mix(in srgb, ${tema.cor} 10%, var(--surface))` }}>
+            <IconeTema style={{ color: tema.cor }} />
+            <div><b>Para {grupo?.nome ?? "vocês"}</b><p className="muted" style={{ marginTop: 2 }}>{frase(tema.mensagensDoDia, { p: parceiros })}</p>
+              <button type="button" className="btn fantasma" style={{ paddingLeft: 0 }} onClick={() => ir("metas")}>{tema.tituloMetas} ›</button></div>
+          </section>
+        )}
+        {mostrarPassos && proximoPasso && (
           <section className="card largo" data-tour="passos">
             <div className="cab">
               <div><h2>Primeiros passos</h2><span className="muted" style={{ fontSize: ".82rem" }}>{feitos} de {passos.length} concluídos</span></div>
-              <button type="button" className="btn fantasma" onClick={() => setProg({ ...prog, oculto: true })}>Ocultar</button>
+              <span style={{ display: "flex", gap: 4 }}>
+                <button type="button" className="btn fantasma" onClick={() => setPassosAbertos(!passosAbertos)} aria-expanded={passosAbertos}>{passosAbertos ? "Menos" : "Ver todos"}</button>
+                <button type="button" className="btn fantasma" onClick={() => setProg({ ...prog, oculto: true })}>Ocultar</button>
+              </span>
             </div>
             <div className="trilho-prog"><i style={{ width: `${(feitos / passos.length) * 100}%` }} /></div>
             <div className="passos">
-              {passos.map((p) => (
+              {(passosAbertos ? passos : [proximoPasso]).map((p) => (
                 <button key={p.titulo} type="button" className={`passo ${p.feito ? "feito" : ""}`} onClick={p.acao}>
                   <span className="marca-passo">{p.feito && <Check size={14} strokeWidth={3} />}</span>
-                  <span><span className="tt">{p.titulo}</span><small>{p.sub}</small></span>
+                  <span><span className="tt">{passosAbertos || p.feito ? p.titulo : `Próximo: ${p.titulo}`}</span><small>{p.sub}</small></span>
                   <ChevronRight size={18} className="muted" />
                 </button>
               ))}
             </div>
           </section>
         )}
+        <section className="card">
+          <div className="cab"><h2>Últimas transações</h2><button type="button" className="btn fantasma" onClick={() => ir("transacoes")}>Ver todas</button></div>
+          {ultimas.length ? <div className="lista">{ultimas.map((l) => <ItemLancamento key={l.id} l={l} dados={dados} abrir={abrir} mostrarData />)}</div>
+            : <div className="vazio"><div>Nenhuma transação ainda. Toque em <b>Lançar</b> para registrar a primeira.</div></div>}
+        </section>
 
         <section className="card">
           <div className="cab"><h2>Gastos por categoria</h2><span className="chip">{mesExtenso(mes).split(" ")[0]}</span></div>
@@ -132,6 +158,12 @@ function Painel({ dados, perfil, userId, abrir, novo, lerConta, perguntar, ir, p
           ) : <div className="vazio"><PieChart /><div>As despesas pagas do mês aparecem aqui, separadas por categoria.</div></div>}
         </section>
 
+        <section className="card">
+          <div className="cab"><h2>Metas em andamento</h2><button type="button" className="btn fantasma" onClick={() => ir("metas")}>{dados.metas.length ? "Ver" : "Criar"}</button></div>
+          {dados.metas.length ? <div className="lista">{dados.metas.slice(0, 3).map((m) => <ItemMeta key={m.id} m={m} abrir={() => ir("metas")} />)}</div>
+            : <div className="vazio"><Target /><div>Defina um objetivo e acompanhe o progresso.</div></div>}
+        </section>
+
         {dados.compartilhados.length > 0 && (
           <section className="card">
             <div className="cab"><h2>Compartilhado com você</h2><button type="button" className="btn fantasma" onClick={() => ir("transacoes")}>Ver todos</button></div>
@@ -139,22 +171,7 @@ function Painel({ dados, perfil, userId, abrir, novo, lerConta, perguntar, ir, p
           </section>
         )}
 
-        <section className="card">
-          <div className="cab"><h2>Últimas transações</h2><button type="button" className="btn fantasma" onClick={() => ir("transacoes")}>Ver todas</button></div>
-          {ultimas.length ? <div className="lista">{ultimas.map((l) => <ItemLancamento key={l.id} l={l} dados={dados} abrir={abrir} mostrarData />)}</div>
-            : <div className="vazio"><div>Nenhuma transação ainda. Toque em <b>Lançar</b> para registrar a primeira.</div></div>}
-        </section>
-
         <MetaDoMes perfil={perfil} entradas={t.entradas} saidas={t.saidas} resultado={t.resultado} ir={ir} />
-
-        <section className="card">
-          <div className="cab"><h2>Contas a vencer</h2><span className="chip">7 dias</span></div>
-          {atrasados.length > 0 && (
-            <div className="aviso neg"><AlertTriangle /><div><b>{atrasados.length === 1 ? "1 conta atrasada" : `${atrasados.length} contas atrasadas`}</b> · {$(atrasados.reduce((a, l) => a + l.valor, 0))}</div></div>
-          )}
-          {aVencer.length ? <div className="lista">{aVencer.map((l) => <ItemLancamento key={l.id} l={l} dados={dados} abrir={abrir} mostrarData />)}</div>
-            : <p className="muted">Nada vencendo nesta semana.</p>}
-        </section>
 
         <section className="card">
           <div className="cab"><h2>Cartões ativos</h2><button type="button" className="btn fantasma" onClick={() => ir("cartoes")}>{cartoes.length ? "Ver" : "Adicionar"}</button></div>
@@ -174,19 +191,6 @@ function Painel({ dados, perfil, userId, abrir, novo, lerConta, perguntar, ir, p
           ) : <div className="vazio"><CreditCard /><div>Acompanhe fatura e limite dos seus cartões.</div></div>}
         </section>
 
-        <section className="card">
-          <div className="cab"><h2>Metas em andamento</h2><button type="button" className="btn fantasma" onClick={() => ir("metas")}>{dados.metas.length ? "Ver" : "Criar"}</button></div>
-          {dados.metas.length ? <div className="lista">{dados.metas.slice(0, 3).map((m) => <ItemMeta key={m.id} m={m} abrir={() => ir("metas")} />)}</div>
-            : <div className="vazio"><Target /><div>Defina um objetivo e acompanhe o progresso.</div></div>}
-        </section>
-
-        {temaVale && tema && IconeTema && (
-          <section className="aviso dica largo" style={{ background: `color-mix(in srgb, ${tema.cor} 10%, var(--surface))` }}>
-            <IconeTema style={{ color: tema.cor }} />
-            <div><b>Para {grupo?.nome ?? "vocês"}</b><p className="muted" style={{ marginTop: 2 }}>{frase(tema.mensagensDoDia, { p: parceiros })}</p>
-              <button type="button" className="btn fantasma" style={{ paddingLeft: 0 }} onClick={() => ir("metas")}>{tema.tituloMetas} ›</button></div>
-          </section>
-        )}
         <section className="aviso dica largo">
           <Lightbulb />
           <div><b>Dica para {OBJETIVOS[perfil.objetivo].titulo.toLowerCase()}</b><p className="muted" style={{ marginTop: 2 }}>{semValores(dica)}</p></div>

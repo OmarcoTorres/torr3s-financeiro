@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Bell, CalendarCheck, CheckCircle2, Smartphone, ChevronRight, CreditCard, Landmark, ShieldCheck, Share2, Database, GraduationCap, Lock, LockOpen, Palette, Tags, UserRound, Users, Wallet } from "lucide-react";
+import { Bell, CalendarCheck, CheckCircle2, Smartphone, ChevronRight, CreditCard, ShieldCheck, Database, GraduationCap, Lock, LockOpen, Palette, Tags, UserRound, Users, Wallet } from "lucide-react";
 import { db, ehCartao, novoId, type Categoria, type Conta, type Objetivo, type Perfil } from "../db";
 import { OBJETIVOS } from "../lib/perfil";
 import { supabase } from "../lib/supabase";
@@ -20,11 +20,10 @@ export function Mais({ dados, email, userId, secao, setSecao, refazerTour, irAba
   const fechar = () => setSecao("");
   useEffect(() => { if (secao === "contas") marcarProgresso("contas"); }, [secao]);
   const itens: [Secao, typeof Wallet, string, string][] = [
-    ["conta", Share2, "Conta e grupo", `${email} · convidar pelo WhatsApp`],
+    ["conta", Users, "Conta e grupo", `${email} · seu grupo, convites e Pix`],
     ["notificacoes", Bell, "Notificações", "Vencimentos, faturas, metas e resumo da semana"],
     ["instalar", Smartphone, "Instalar no celular", "Ícone na tela de início, em tela cheia"],
     ["perfil", UserRound, "Seu perfil e objetivo", "Nome, idade, objetivo e meta do mês"],
-    ["openfinance", Landmark, "Open Finance", "Conectar bancos e importar transações · em breve"],
     ["fechamento", CalendarCheck, "Fechamento mensal", "Saldo do mês, pendências e fechar/reabrir"],
     ["categorias", Tags, "Categorias", "Nomes, cores, ícones e subcategorias"],
     ["contas", Wallet, "Contas e carteiras", "Bancos, caixa e saldo inicial"],

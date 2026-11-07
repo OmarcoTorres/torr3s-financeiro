@@ -4,7 +4,9 @@ import { extrasDaMinhaMeta, guardarNaMetaDoGrupo, removerAporteDoGrupo, useGrupo
 import { frase, primeiroNome, temaDe } from "../lib/tema";
 import { supabase } from "../lib/supabase";
 import { CaixinhaDoGrupo } from "../components/Caixinha";
-import { DepositarPix, PainelPix } from "../components/PixDireto";
+import { FormChavePix, PainelPix } from "../components/PixDireto";
+import { useChavePix } from "../lib/chavePix";
+import { SeuGrupo } from "../components/Grupo";
 import { PedirPix } from "../components/PedidosPix";
 import { celebrarDeposito, mensagemDeCarinho } from "../components/Coracoes";
 import { useCaixinhasEstado } from "../lib/caixinha";
@@ -64,6 +66,7 @@ export function Metas({ dados }: { dados: DadosApp }) {
   const [edit, setEdit] = useState<Partial<Meta> | null>(null);
   const [aberta, setAberta] = useState<string | null>(null);
   const [doGrupo, setDoGrupo] = useState<string | null>(null);
+  const [grupoAberto, setGrupoAberto] = useState(false);
   const grupos = useGrupos();
   const meuId = useMeuId();
   const { tema, parceiros } = useTemaAtivo(meuId);
@@ -71,54 +74,89 @@ export function Metas({ dados }: { dados: DadosApp }) {
   const extra = (m: Meta) => (m.grupoId ? extrasDaMinhaMeta(m.id, grupos.metas) : 0);
   const metas = [...dados.metas].sort((a, b) => resumoMeta({ ...a, guardado: a.guardado + extra(a) }).pct - resumoMeta({ ...b, guardado: b.guardado + extra(b) }).pct);
   const dosOutros = grupos.metas.filter((m) => !m.minha);
-  const total = metas.reduce((a, m) => a + m.guardado + extra(m), 0);
-  const alvo = metas.reduce((a, m) => a + m.alvo, 0);
   // Juntos: todas as metas compartilhadas (as minhas, com o valor local mais recente, e as dos outros).
   const compartilhadas = grupos.metas.map((m) => ({ m, partes: partesDaMeta(m, m.minha ? dados.metas.find((x) => x.id === m.id)?.guardado : undefined) }));
   const partesJuntos = juntarPartes(compartilhadas.map((c) => c.partes));
   const totalJuntos = partesJuntos.reduce((a, p) => a + p.valor, 0);
   const alvoJuntos = compartilhadas.reduce((a, c) => a + c.m.alvo, 0);
 
+  const temGrupo = grupos.grupos.length > 0;
+  const minhasCompartilhadas = metas.filter((m) => m.grupoId);
+  const soMinhas = metas.filter((m) => !m.grupoId);
+  const totalSoMinhas = soMinhas.reduce((a, m) => a + m.guardado, 0);
+  const alvoSoMinhas = soMinhas.reduce((a, m) => a + m.alvo, 0);
+  const novaMeta = (grupoId?: string) => setEdit({ cor: tema?.cor && grupoId ? tema.cor : CORES[0], icone: grupoId && tema ? tema.icone : "piggy", grupoId });
+  const grupoPadrao = grupos.grupos[0]?.id;
+
   return (
     <>
-      <div className="kpis">
-        <div className="kpi-card"><span className="rotulo">Já guardado</span><span className="v num pos">{dinheiro(total)}</span></div>
-        <div className="kpi-card"><span className="rotulo">Somando as metas</span><span className="v num">{dinheiro(alvo)}</span></div>
-      </div>
-      {compartilhadas.length > 0 && (
+      {/* 1) Juntos: o número principal do casal/grupo, com a parte de cada um. */}
+      {temGrupo && (
         <section className="card" style={{ borderTop: tema ? `4px solid ${tema.cor}` : undefined }}>
-          <div className="cab"><h2>Juntos</h2><Heart size={18} style={{ color: tema?.cor }} /></div>
-          <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
-            <b className="num" style={{ fontFamily: "var(--display)", fontSize: "1.8rem" }}>{dinheiro(totalJuntos)}</b>
-            <span className="muted num">de {dinheiro(alvoJuntos)} · {compartilhadas.length} {compartilhadas.length === 1 ? "meta" : "metas"} {compartilhadas.length === 1 ? "compartilhada" : "compartilhadas"}</span>
+          <div className="cab">
+            <h2>{tema?.tituloMetas ?? "Metas do grupo"}</h2>
+            <button type="button" className="btn fantasma" onClick={() => setGrupoAberto(true)}><Users size={16} />Grupo</button>
           </div>
-          <BarraDividida partes={partesJuntos} alvo={alvoJuntos} meuId={meuId} corTema={tema?.cor ?? "#d6457a"} />
-          <span className="muted" style={{ fontSize: ".8rem" }}>Cada um deposita na própria conta; aqui o app soma tudo o que vocês guardaram para as metas em comum.</span>
+          {compartilhadas.length > 0 ? (
+            <>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
+                <span className="rotulo" style={{ width: "100%" }}>Juntos</span>
+                <b className="num" style={{ fontFamily: "var(--display)", fontSize: "1.8rem" }}>{dinheiro(totalJuntos)}</b>
+                <span className="muted num">de {dinheiro(alvoJuntos)}</span>
+              </div>
+              <BarraDividida partes={partesJuntos} alvo={alvoJuntos} meuId={meuId} corTema={tema?.cor ?? "#d6457a"} />
+              {tema && <span className="muted" style={{ fontSize: ".84rem" }}>{frase(tema.incentivos, { p: parceiros })}</span>}
+              <div className="lista">
+                {minhasCompartilhadas.map((m) => <ItemMeta key={m.id} m={m} abrir={() => setAberta(m.id)} />)}
+                {dosOutros.map((m) => <ItemMetaGrupo key={`${m.espaco_id}:${m.id}`} m={m} abrir={() => setDoGrupo(`${m.espaco_id}:${m.id}`)} />)}
+              </div>
+            </>
+          ) : (
+            <div className="vazio"><Heart style={{ color: tema?.cor }} /><div>Crie o primeiro sonho de vocês. Cada um deposita na própria conta e o app soma tudo aqui.</div></div>
+          )}
+          <div className="linha-botoes">
+            <button type="button" className="btn suave" onClick={() => novaMeta(grupoPadrao)}><Plus />{tema ? `Nova meta ${tema.tituloMetas.replace(/^Metas /, "")}` : "Nova meta do grupo"}</button>
+          </div>
+          {compartilhadas.length === 0 && tema && (
+            <div className="linha-botoes">{tema.sugestoesMeta.slice(0, 4).map((n) => <button key={n} type="button" className="chip" onClick={() => setEdit({ nome: n, cor: tema.cor, icone: tema.icone, grupoId: grupoPadrao })}>{n}</button>)}</div>
+          )}
         </section>
       )}
-      {caixinhas.caixinhas.length > 0 ? <CaixinhaDoGrupo meuId={meuId} /> : <DepositarPix metasMinhas={dados.metas} meuId={meuId} />}
+
+      {caixinhas.caixinhas.length > 0 && <CaixinhaDoGrupo meuId={meuId} />}
       <PedirPix meuId={meuId} />
-      {tema && (grupos.metas.length > 0 || grupos.grupos.length > 0) && (
-        <section className="aviso dica largo" style={{ borderColor: tema.cor }}>
-          <Heart style={{ color: tema.cor }} />
-          <div><b>{tema.tituloMetas}</b><p className="muted" style={{ marginTop: 2 }}>{frase(tema.incentivos, { p: parceiros })}</p></div>
-        </section>
-      )}
-      {dosOutros.length > 0 && (
-        <section className="card">
-          <div className="cab"><h2>{tema?.tituloMetas ?? "Metas do grupo"}</h2><Users size={18} className="muted" /></div>
-          <div className="lista">{dosOutros.map((m) => <ItemMetaGrupo key={`${m.espaco_id}:${m.id}`} m={m} abrir={() => setDoGrupo(`${m.espaco_id}:${m.id}`)} />)}</div>
-        </section>
-      )}
+
+      {/* 2) Só minhas: metas pessoais (fora do grupo), com o próprio total. */}
       <section className="card">
-        <div className="cab"><h2>Metas em andamento</h2><button type="button" className="btn suave" onClick={() => setEdit({ cor: CORES[0], icone: "piggy" })}><Plus />Nova meta</button></div>
-        {metas.length === 0 ? (
-          <div className="vazio"><Target /><div>Crie uma meta (viagem, reserva de emergência, um equipamento) e registre quanto vai guardando. O app mostra quanto falta por mês.</div></div>
-        ) : <div className="lista">{metas.map((m) => <ItemMeta key={m.id} m={m} abrir={() => setAberta(m.id)} />)}</div>}
+        <div className="cab">
+          <div><h2>{temGrupo ? "Só minhas" : "Metas em andamento"}</h2>
+            {soMinhas.length > 0 && <span className="muted num" style={{ fontSize: ".82rem" }}>{dinheiro(totalSoMinhas)} de {dinheiro(alvoSoMinhas)}</span>}</div>
+          <button type="button" className="btn suave" onClick={() => novaMeta()}><Plus />Nova meta</button>
+        </div>
+        {soMinhas.length === 0 ? (
+          <div className="vazio"><Target /><div>{temGrupo ? "Metas só suas (que o grupo não vê) aparecem aqui." : "Crie uma meta (viagem, reserva de emergência, um equipamento) e registre quanto vai guardando. O app mostra quanto falta por mês."}</div></div>
+        ) : <div className="lista">{soMinhas.map((m) => <ItemMeta key={m.id} m={m} abrir={() => setAberta(m.id)} />)}</div>}
       </section>
+
+      <MeuPixRodape />
+      <Folha titulo="Seu grupo" aberta={grupoAberto} fechar={() => setGrupoAberto(false)}><SeuGrupo userId={meuId} /></Folha>
       {aberta && <DetalheMeta m={dados.metas.find((m) => m.id === aberta)!} fechar={() => setAberta(null)} editar={(m) => { setAberta(null); setEdit(m); }} />}
       {doGrupo && <DetalheMetaGrupo m={dosOutros.find((m) => `${m.espaco_id}:${m.id}` === doGrupo)} meuId={meuId} fechar={() => setDoGrupo(null)} />}
       <EditarMeta edit={edit} fechar={() => setEdit(null)} />
+    </>
+  );
+}
+
+/** Rodapé de Metas: para onde vão os seus depósitos por Pix, com atalho para trocar. */
+function MeuPixRodape() {
+  const [chave] = useChavePix();
+  const [aberto, setAberto] = useState(false);
+  return (
+    <>
+      <button type="button" className="btn fantasma" style={{ justifySelf: "center", fontSize: ".84rem" }} onClick={() => setAberto(true)}>
+        <QrCode size={16} />{chave ? `Seus depósitos vão para o seu Pix (${chave.chave.slice(0, 8)}…) · trocar` : "Cadastrar o seu Pix para depósitos"}
+      </button>
+      <Folha titulo="Meu Pix" aberta={aberto} fechar={() => setAberto(false)}><FormChavePix aoSalvar={() => setAberto(false)} /></Folha>
     </>
   );
 }

@@ -24,6 +24,10 @@ export function FormChavePix({ aoSalvar, explicacao }: { aoSalvar?: () => void; 
   const [perfil] = useConfig<Perfil | null>("perfil", null);
   const [form, setForm] = useState<ChavePix>(() => atual ?? { chave: "", recebedor: perfil?.nome ?? "", cidade: "SAO PAULO" });
   const [trabalhando, setTrabalhando] = useState(false);
+  // Perfil e chave carregam depois da 1ª renderização: preenche o que ainda estiver vazio.
+  useEffect(() => {
+    setForm((f) => ({ chave: f.chave || atual?.chave || "", recebedor: f.recebedor || atual?.recebedor || perfil?.nome || "", cidade: f.cidade || atual?.cidade || "SAO PAULO" }));
+  }, [atual, perfil?.nome]);
   return (
     <div style={{ display: "grid", gap: 10 }}>
       <span className="muted" style={{ fontSize: ".88rem" }}>{explicacao ?? "A conta onde você guarda o dinheiro. Os seus depósitos vão para ela. Fica salvo na sua conta do Invest+, em qualquer celular."}</span>

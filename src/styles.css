@@ -439,3 +439,33 @@ input[type="date"]::-webkit-calendar-picker-indicator, input[type="month"]::-web
 @keyframes celebra-sobe { from { transform: translateY(30px) scale(.92); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes celebra-entra { from { opacity: 0; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .celebra, .celebra-cartao, .celebra-pulso { animation: none; } .celebra-coracao { display: none; } }
+
+/* ---------- Ajustes de usabilidade (revisão de UX) ---------- */
+/* Cabeçalho de linha "rótulo à esquerda, valor à direita" em qualquer lugar (antes só dentro de .card). */
+.cab { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
+/* Campos dentro de blocos cinza: fundo branco para a caixa de digitar aparecer. */
+.bloco .campo input, .bloco .campo select, .bloco .campo textarea, .bloco .entrada, .bloco textarea,
+.aviso .entrada, .aviso textarea { background: var(--surface); border-color: var(--line); }
+/* Frase do topo pode ocupar 2 linhas em vez de ser cortada. */
+.topo .sub { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+/* Mini cartão: não corta o final do número no celular. */
+@media (max-width: 480px) { .cartao-mini { height: auto; min-height: 58px; gap: 2px; } }
+/* Abas que rolam para o lado: esmaece a borda direita para mostrar que tem mais. */
+@media (max-width: 640px) { .abas { -webkit-mask-image: linear-gradient(to right, #000 82%, transparent); mask-image: linear-gradient(to right, #000 82%, transparent); } }
+/* Tabelas largas: sombra na borda indica que dá para rolar para o lado. */
+.tabela {
+  background:
+    linear-gradient(to right, var(--surface) 30%, transparent) left center / 40px 100% no-repeat local,
+    linear-gradient(to left, var(--surface) 30%, transparent) right center / 40px 100% no-repeat local,
+    radial-gradient(farthest-side at 0 50%, rgb(0 0 0 / 16%), transparent) left center / 14px 100% no-repeat scroll,
+    radial-gradient(farthest-side at 100% 50%, rgb(0 0 0 / 16%), transparent) right center / 14px 100% no-repeat scroll,
+    var(--surface);
+}
+/* Lançar: opções menos usadas recolhidas */
+.mais-opcoes { border-radius: 16px; background: var(--surface-2); padding: 12px 14px; }
+.mais-opcoes > summary { cursor: pointer; font-weight: 700; list-style: none; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.mais-opcoes > summary::-webkit-details-marker { display: none; }
+.mais-opcoes > summary::before { content: "＋"; color: var(--accent); font-weight: 800; }
+.mais-opcoes[open] > summary::before { content: "－"; }
+.mais-opcoes > summary small { font-weight: 500; font-size: .8rem; }
+.mais-opcoes .campo input, .mais-opcoes .campo textarea, .mais-opcoes .entrada, .mais-opcoes textarea { background: var(--surface); }

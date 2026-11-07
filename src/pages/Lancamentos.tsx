@@ -84,9 +84,9 @@ export function Lancamentos({ dados, abrir }: { dados: DadosApp; abrir: (l: Lanc
       )}
 
       <section className="card" style={{ gap: 6 }}>
-        <div className="cab">
-          <span className="muted" style={{ fontSize: ".82rem" }}>{lista.length} lançamento(s) · {dataBR(de)} a {dataBR(ate)}</span>
-          <span className="num" style={{ fontSize: ".82rem", fontWeight: 700 }}><span className="pos">+{dinheiro(t.entradas)}</span> · <span className="neg">-{dinheiro(t.saidas)}</span></span>
+        <div className="cab" style={{ alignItems: "flex-start", flexWrap: "wrap" }}>
+          <span className="muted" style={{ fontSize: ".82rem" }}>{lista.length} {lista.length === 1 ? "lançamento" : "lançamentos"}<br />{dataBR(de)} a {dataBR(ate)}</span>
+          <span className="num" style={{ fontSize: ".82rem", fontWeight: 700, textAlign: "right", whiteSpace: "nowrap" }}><span className="pos">+{dinheiro(t.entradas)}</span><br /><span className="neg">−{dinheiro(t.saidas)}</span></span>
         </div>
         {porDia.length === 0 ? (
           <div className="vazio"><Search /><div>Nenhum lançamento com esses filtros.</div></div>
