@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
-import { Heart, Plus, Target, Users } from "lucide-react";
+import { Heart, Plus, QrCode, Target, Users } from "lucide-react";
 import { extrasDaMinhaMeta, guardarNaMetaDoGrupo, removerAporteDoGrupo, useGrupos, useGruposEstado, useTemaAtivo, type MetaGrupo } from "../lib/grupos";
 import { frase, primeiroNome, temaDe } from "../lib/tema";
 import { supabase } from "../lib/supabase";
 import { CaixinhaDoGrupo } from "../components/Caixinha";
-import { DepositarPix } from "../components/PixDireto";
+import { DepositarPix, PainelPix } from "../components/PixDireto";
 import { celebrarDeposito, mensagemDeCarinho } from "../components/Coracoes";
 import { useCaixinhasEstado } from "../lib/caixinha";
 import { db, novoId, type Meta } from "../db";
@@ -163,18 +163,19 @@ function DetalheMetaGrupo({ m, meuId, fechar }: { m?: MetaGrupo; meuId?: string;
   const aviso = useAviso();
   const [valor, setValor] = useState("");
   const [trabalhando, setTrabalhando] = useState(false);
+  const [pix, setPix] = useState<number | null>(null);
   const { grupos } = useGruposEstado();
   if (!m) return null;
   const tema = temaDe(grupos.find((g) => g.id === m.grupo_id)?.tipo);
   const somaGrupo = m.aportes.reduce((a, x) => a + x.valor, 0);
   const r = resumoMeta({ ...m, guardado: m.guardado + somaGrupo, aportes: [], criadoEm: "", prazo: m.prazo ?? undefined });
-  async function guardar() {
-    const v = lerValor(valor) ?? 0;
+  async function guardar(valorPix?: number) {
+    const v = valorPix ?? lerValor(valor) ?? 0;
     if (v <= 0) { aviso("Informe um valor."); return; }
     setTrabalhando(true);
     try {
       const antes = m!.guardado + somaGrupo;
-      await guardarNaMetaDoGrupo(m!, v); setValor("");
+      await guardarNaMetaDoGrupo(m!, v); setValor(""); setPix(null);
       celebrarDeposito({ valor: v, metaNome: m!.nome, antes, depois: antes + v, alvo: m!.alvo, cor: tema.cor, mensagem: mensagemDeCarinho(v, m!.nome, m!.alvo - antes - v) });
     }
     catch (e) { aviso(navigator.onLine ? String((e as Error).message) : "Sem internet agora: para guardar na meta do grupo é preciso estar conectado."); }
@@ -189,8 +190,13 @@ function DetalheMetaGrupo({ m, meuId, fechar }: { m?: MetaGrupo; meuId?: string;
         <div className="cab"><span className="num">{dinheiro(m.guardado + somaGrupo)} de {dinheiro(m.alvo)}</span><span className="muted num">falta {dinheiro(r.falta)}</span></div>
         {r.porMes ? <span className="muted" style={{ fontSize: ".86rem" }}>Para chegar até {mesExtenso(m.prazo!)}: {dinheiro(r.porMes)} por mês, somando todo mundo.</span> : null}
       </div>
-      <Campo rotulo="Quanto você vai guardar"><InputValor id="mg-valor" value={valor} onChange={setValor} /></Campo>
-      <div className="linha-botoes"><button type="button" className="btn pri" disabled={trabalhando} onClick={guardar}>{trabalhando ? "Guardando…" : "Guardar junto"}</button></div>
+      <Campo rotulo="Quanto você vai depositar"><InputValor id="mg-valor" value={valor} onChange={(v) => { setValor(v); setPix(null); }} /></Campo>
+      {pix ? <PainelPix valorCentavos={pix} mensagem={m.nome} aoPagar={() => guardar(pix)} aoCancelar={() => setPix(null)} /> : (
+        <div className="linha-botoes">
+          <button type="button" className="btn pri" onClick={() => { const v = lerValor(valor) ?? 0; if (v <= 0) aviso("Digite o valor do depósito."); else setPix(v); }}><QrCode />Depositar por Pix</button>
+          <button type="button" className="btn" disabled={trabalhando} onClick={() => void guardar()}>{trabalhando ? "Guardando…" : "Já guardei"}</button>
+        </div>
+      )}
       <AportesDoGrupo aportes={m.aportes} meuId={meuId} />
     </Folha>
   );
@@ -199,6 +205,7 @@ function DetalheMetaGrupo({ m, meuId, fechar }: { m?: MetaGrupo; meuId?: string;
 function DetalheMeta({ m: original, fechar, editar }: { m: Meta; fechar: () => void; editar: (m: Meta) => void }) {
   const aviso = useAviso();
   const [valor, setValor] = useState("");
+  const [pix, setPix] = useState<number | null>(null);
   const grupos = useGruposEstado();
   const meuId = useMeuId();
   const { tema } = useTemaAtivo(meuId);
@@ -208,13 +215,13 @@ function DetalheMeta({ m: original, fechar, editar }: { m: Meta; fechar: () => v
   const nomeGrupo = m.grupoId ? grupos.grupos.find((g) => g.id === m.grupoId)?.nome : undefined;
   const somaGrupo = doGrupo ? doGrupo.aportes.reduce((a, x) => a + x.valor, 0) : 0;
   const r = resumoMeta({ ...m, guardado: m.guardado + somaGrupo });
-  async function movimentar(sinal: 1 | -1) {
-    const v = lerValor(valor) ?? 0;
+  async function movimentar(sinal: 1 | -1, valorPix?: number) {
+    const v = valorPix ?? lerValor(valor) ?? 0;
     if (v <= 0) { aviso("Informe um valor."); return; }
     const guardado = Math.max(0, m.guardado + sinal * v);
     await db.metas.update(m.id, { guardado, aportes: [...m.aportes, { data: hoje(), valor: sinal * v }] });
-    setValor("");
-    if (sinal > 0 && m.grupoId) {
+    setValor(""); setPix(null);
+    if (sinal > 0 && (m.grupoId || valorPix)) {
       const antes = m.guardado + somaGrupo;
       celebrarDeposito({ valor: v, metaNome: m.nome, antes, depois: antes + v, alvo: m.alvo, cor: tema?.cor ?? m.cor, mensagem: mensagemDeCarinho(v, m.nome, m.alvo - antes - v) });
     } else aviso(sinal > 0 ? `${dinheiro(v)} guardados.` : `${dinheiro(v)} retirados.`);
@@ -229,11 +236,14 @@ function DetalheMeta({ m: original, fechar, editar }: { m: Meta; fechar: () => v
         {somaGrupo > 0 && <span className="muted num" style={{ fontSize: ".84rem" }}>Você: {dinheiro(m.guardado)} · grupo: {dinheiro(somaGrupo)}</span>}
         {r.porMes ? <span className="muted" style={{ fontSize: ".86rem" }}>Para chegar até {mesExtenso(m.prazo!)}: guarde {dinheiro(r.porMes)} por mês.</span> : null}
       </div>
-      <Campo rotulo="Valor"><InputValor id="mt-valor" value={valor} onChange={setValor} /></Campo>
-      <div className="linha-botoes">
-        <button type="button" className="btn pri" onClick={() => movimentar(1)}>Guardar</button>
-        <button type="button" className="btn" onClick={() => movimentar(-1)}>Retirar</button>
-      </div>
+      <Campo rotulo="Valor"><InputValor id="mt-valor" value={valor} onChange={(v) => { setValor(v); setPix(null); }} /></Campo>
+      {pix ? <PainelPix valorCentavos={pix} mensagem={m.nome} aoPagar={() => movimentar(1, pix)} aoCancelar={() => setPix(null)} /> : (
+        <div className="linha-botoes">
+          <button type="button" className="btn pri" onClick={() => { const v = lerValor(valor) ?? 0; if (v <= 0) aviso("Digite o valor do depósito."); else setPix(v); }}><QrCode />Depositar por Pix</button>
+          <button type="button" className="btn" onClick={() => movimentar(1)}>Já guardei</button>
+          <button type="button" className="btn fantasma" onClick={() => movimentar(-1)}>Retirar</button>
+        </div>
+      )}
       {doGrupo && <AportesDoGrupo aportes={doGrupo.aportes} meuId={meuId} podeRemoverTodos />}
       {m.aportes.length > 0 && (
         <div className="card" style={{ boxShadow: "none", background: "var(--surface-2)" }}>

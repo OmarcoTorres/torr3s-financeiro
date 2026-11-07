@@ -20,6 +20,72 @@ type ConfigPix = { chave: string; recebedor: string; cidade: string };
 /** Conta padrão da caixinha (Itaú do Marco). Dá para trocar em ⚙️ em cada aparelho. */
 const PADRAO: ConfigPix = { chave: "8f9267d2-f9ee-41f9-ad2e-fef63bb43798", recebedor: "Marco Torres", cidade: "SAO PAULO" };
 
+/** Chave Pix de destino deste aparelho (padrão: conta da caixinha). */
+export function useChavePix() { return useConfig<ConfigPix>("pixDeposito", PADRAO); }
+
+/**
+ * Painel do Pix para um valor qualquer: copia e cola em destaque (é o que se usa no celular),
+ * QR Code pequeno abaixo (para pagar de outro aparelho) e "Já paguei".
+ * Depois de copiar, quando a pessoa volta do app do banco, pergunta se pagou.
+ */
+export function PainelPix({ valorCentavos, mensagem, aoPagar, aoCancelar }: { valorCentavos: number; mensagem?: string; aoPagar: () => Promise<void>; aoCancelar?: () => void }) {
+  const aviso = useAviso();
+  const [cfg] = useChavePix();
+  const [img, setImg] = useState("");
+  const [copiou, setCopiou] = useState(false);
+  const [perguntar, setPerguntar] = useState(false);
+  const [trabalhando, setTrabalhando] = useState(false);
+  const [txid] = useState(() => `IVP${Date.now().toString(36).toUpperCase()}`);
+  const codigo = pixCopiaECola({ chave: cfg.chave || PADRAO.chave, recebedor: cfg.recebedor || PADRAO.recebedor, cidade: cfg.cidade || PADRAO.cidade, valorCentavos, txid, mensagem: mensagem ?? "Invest+" });
+
+  useEffect(() => { void QRCode.toDataURL(codigo, { margin: 1, width: 320, errorCorrectionLevel: "M" }).then(setImg); }, [codigo]);
+  // Voltou do app do banco depois de copiar: pergunta se pagou (não precisa procurar o botão).
+  useEffect(() => {
+    if (!copiou) return;
+    const voltar = () => { if (document.visibilityState === "visible") setPerguntar(true); };
+    document.addEventListener("visibilitychange", voltar);
+    return () => document.removeEventListener("visibilitychange", voltar);
+  }, [copiou]);
+
+  async function copiar() {
+    try { await navigator.clipboard.writeText(codigo); setCopiou(true); aviso("Copiado! Abra o app do banco › Pix › Pix copia e cola."); }
+    catch { aviso("Selecione o código e copie."); }
+  }
+  async function pagar() {
+    setTrabalhando(true);
+    try { await aoPagar(); } finally { setTrabalhando(false); }
+  }
+
+  return (
+    <div className="bloco" style={{ background: "var(--surface-2)", gap: 10 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}><b>Pix de {dinheiro(valorCentavos)}</b><span className="muted" style={{ fontSize: ".8rem" }}>para {cfg.recebedor || PADRAO.recebedor}</span></div>
+      {perguntar ? (
+        <div className="aviso dica" role="alertdialog" aria-label="Confirmar pagamento">
+          <div><b>Pagou os {dinheiro(valorCentavos)}?</b>
+            <div className="linha-botoes">
+              <button type="button" className="btn pri" disabled={trabalhando} onClick={() => void pagar()}><Check />Sim, paguei</button>
+              <button type="button" className="btn fantasma" onClick={() => setPerguntar(false)}>Ainda não</button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <>
+          <button type="button" className="btn pri" style={{ width: "100%", justifyContent: "center" }} onClick={() => void copiar()}><Copy />{copiou ? "Copiar de novo" : "Copiar Pix copia e cola"}</button>
+          <textarea readOnly value={codigo} rows={3} aria-label="Pix copia e cola" style={{ fontFamily: "var(--mono, monospace)", fontSize: 11, width: "100%" }} onFocus={(e) => e.currentTarget.select()} />
+          <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+            {img ? <img src={img} alt={`QR Code Pix de ${dinheiro(valorCentavos)}`} width={112} height={112} style={{ background: "#fff", padding: 4, borderRadius: 8, flex: "none" }} /> : <span className="carregando" aria-label="Gerando QR Code" />}
+            <span className="muted" style={{ fontSize: ".8rem" }}>QR Code para pagar de outro aparelho. Confira o nome do recebedor no banco antes de confirmar.</span>
+          </div>
+          <div className="linha-botoes">
+            <button type="button" className="btn" disabled={trabalhando} onClick={() => void pagar()}><Check />Já paguei</button>
+            {aoCancelar && <button type="button" className="btn fantasma" onClick={aoCancelar}>Cancelar</button>}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 export function DepositarPix({ metasMinhas, meuId }: { metasMinhas: Meta[]; meuId?: string }) {
   const aviso = useAviso();
   const [cfg, setCfg] = useConfig<ConfigPix>("pixDeposito", PADRAO);
@@ -29,7 +95,7 @@ export function DepositarPix({ metasMinhas, meuId }: { metasMinhas: Meta[]; meuI
   const [ajustes, setAjustes] = useState(false);
   const [valor, setValor] = useState("");
   const [meta, setMeta] = useState("");
-  const [gerado, setGerado] = useState<{ codigo: string; valor: number; img: string } | null>(null);
+  const [gerado, setGerado] = useState<{ valor: number; mensagem: string } | null>(null);
   const [form, setForm] = useState<ConfigPix>(cfg);
 
   useEffect(() => { if (ajustes) setForm(cfg); }, [ajustes, cfg]);
@@ -40,18 +106,10 @@ export function DepositarPix({ metasMinhas, meuId }: { metasMinhas: Meta[]; meuI
     ...dosOutros.map((m) => ({ k: `grupo:${m.espaco_id}:${m.id}`, nome: `${m.nome} (de ${primeiroNome(m.dono_nome)})` })),
   ];
 
-  async function gerar() {
+  function gerar() {
     const v = lerValor(valor) ?? 0;
     if (v <= 0) { aviso("Informe um valor."); return; }
-    const txid = `IVP${Date.now().toString(36).toUpperCase()}`;
-    const nomeMeta = opcoes.find((o) => o.k === meta)?.nome;
-    const codigo = pixCopiaECola({ chave: cfg.chave, recebedor: cfg.recebedor || "RECEBEDOR", cidade: cfg.cidade, valorCentavos: v, txid, mensagem: nomeMeta ?? grupos[0]?.nome ?? "Invest+" });
-    const img = await QRCode.toDataURL(codigo, { margin: 1, width: 560, errorCorrectionLevel: "M" });
-    setGerado({ codigo, valor: v, img });
-  }
-  async function copiar() {
-    if (!gerado) return;
-    try { await navigator.clipboard.writeText(gerado.codigo); aviso("Pix copia e cola copiado. Cole no app do seu banco."); } catch { aviso("Selecione o código e copie."); }
+    setGerado({ valor: v, mensagem: opcoes.find((o) => o.k === meta)?.nome ?? grupos[0]?.nome ?? "Invest+" });
   }
   async function jaPaguei() {
     if (!gerado) return;
@@ -91,7 +149,7 @@ export function DepositarPix({ metasMinhas, meuId }: { metasMinhas: Meta[]; meuI
       </div>
       <span className="muted" style={{ fontSize: ".88rem" }}>
         {semChave ? "Cadastre a chave Pix da conta onde vocês guardam o dinheiro. Ela fica salva só neste aparelho."
-          : `Gera o QR Code para ${cfg.recebedor || "a conta"} · chave ${cfg.chave.slice(0, 8)}…. Pague no app do banco e toque em “Já paguei”.`}
+          : `Pix para ${cfg.recebedor || "a conta"}, no valor que você digitar. Também dá para depositar de dentro de cada meta.`}
       </span>
       <div><button type="button" className="btn pri" onClick={() => (semChave ? setAjustes(true) : setAberta(true))}><QrCode />{semChave ? "Cadastrar chave Pix" : "Depositar"}</button></div>
 
@@ -107,20 +165,10 @@ export function DepositarPix({ metasMinhas, meuId }: { metasMinhas: Meta[]; meuI
                 </select>
               </label>
             )}
-            <div className="linha-botoes"><button type="button" className="btn pri" onClick={() => void gerar()}><QrCode />Gerar QR Code</button></div>
+            <div className="linha-botoes"><button type="button" className="btn pri" onClick={gerar}><QrCode />Gerar Pix</button></div>
           </>
         ) : (
-          <>
-            <span className="muted" style={{ fontSize: ".88rem" }}>No app do banco: Pix › <b>Pix copia e cola</b> (ou leia o QR de outro aparelho). Confira o nome do recebedor antes de confirmar.</span>
-            <img src={gerado.img} alt={`QR Code Pix de ${dinheiro(gerado.valor)}`} style={{ width: "min(280px, 100%)", justifySelf: "center", background: "#fff", padding: 8, borderRadius: 12 }} />
-            <label className="campo"><span>Pix copia e cola</span>
-              <textarea readOnly value={gerado.codigo} rows={4} style={{ fontFamily: "var(--mono, monospace)", fontSize: 12 }} onFocus={(e) => e.currentTarget.select()} />
-            </label>
-            <div className="linha-botoes">
-              <button type="button" className="btn pri" onClick={() => void copiar()}><Copy />Copiar código</button>
-              <button type="button" className="btn" onClick={() => void jaPaguei()}><Check />Já paguei</button>
-            </div>
-          </>
+          <PainelPix valorCentavos={gerado.valor} mensagem={gerado.mensagem} aoPagar={jaPaguei} aoCancelar={() => setGerado(null)} />
         )}
       </Folha>
 
