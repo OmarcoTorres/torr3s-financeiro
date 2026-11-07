@@ -73,7 +73,8 @@ export function PedirPix({ meuId }: { meuId?: string }) {
   const outros = (grupo?.membros ?? []).filter((m) => m.user_id !== meuId);
   const [f, setF] = useState({ valor: "", chave: "", favorecido: "", motivo: "", responsavel: "" });
   const [trabalhando, setTrabalhando] = useState(false);
-  if (!grupo || !outros.length) return null;
+  // Banco ainda sem a migração 0010: o card não aparece (nada quebrado na tela).
+  if (!grupo || !outros.length || erro?.includes("0010")) return null;
   const responsavel = f.responsavel || outros[0].user_id;
   const historico = pedidos.filter((p) => p.grupo_id === grupo.id && p.status !== "cancelado").slice(0, 6);
 
