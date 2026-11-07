@@ -3,6 +3,7 @@ import { Heart, Plus, Target, Users } from "lucide-react";
 import { extrasDaMinhaMeta, guardarNaMetaDoGrupo, removerAporteDoGrupo, useGrupos, useGruposEstado, useTemaAtivo, type MetaGrupo } from "../lib/grupos";
 import { frase, primeiroNome, temaDe } from "../lib/tema";
 import { supabase } from "../lib/supabase";
+import { CaixinhaDoGrupo } from "../components/Caixinha";
 import { db, novoId, type Meta } from "../db";
 import { hoje, mesAtual } from "../lib/calc";
 import { dataCurta, dinheiro, lerValor, mesExtenso, numeroBR } from "../lib/format";
@@ -74,6 +75,7 @@ export function Metas({ dados }: { dados: DadosApp }) {
         <div className="kpi-card"><span className="rotulo">Já guardado</span><span className="v num pos">{dinheiro(total)}</span></div>
         <div className="kpi-card"><span className="rotulo">Somando as metas</span><span className="v num">{dinheiro(alvo)}</span></div>
       </div>
+      <CaixinhaDoGrupo meuId={meuId} />
       {tema && (grupos.metas.length > 0 || grupos.grupos.length > 0) && (
         <section className="aviso dica largo" style={{ borderColor: tema.cor }}>
           <Heart style={{ color: tema.cor }} />

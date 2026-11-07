@@ -6,6 +6,7 @@ import { desligarPushAoSair } from "./push";
 import { LIMITE_FOTO, prepararFoto } from "./foto";
 import { criarFilaMiddleware } from "./filaMiddleware";
 import { limparGruposLocais } from "./grupos";
+import { limparCaixinhasLocais } from "./caixinha";
 
 /**
  * Sincronização com o Supabase.
@@ -523,5 +524,6 @@ export async function sairDaConta(opcoes: { descartarPendentes?: boolean } = {})
   });
   mudar({ status: "desligado", espacoId: undefined, pendentes: 0 });
   limparGruposLocais();
+  limparCaixinhasLocais();
   return { saiu: true };
 }
