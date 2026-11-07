@@ -469,3 +469,6 @@ input[type="date"]::-webkit-calendar-picker-indicator, input[type="month"]::-web
 .mais-opcoes[open] > summary::before { content: "－"; }
 .mais-opcoes > summary small { font-weight: 500; font-size: .8rem; }
 .mais-opcoes .campo input, .mais-opcoes .campo textarea, .mais-opcoes .entrada, .mais-opcoes textarea { background: var(--surface); }
+/* Atalhos do Início: 4 em linha no computador, 2×2 no celular */
+.atalhos { grid-template-columns: repeat(4, 1fr); }
+@media (max-width: 480px) { .atalhos { grid-template-columns: repeat(2, 1fr); } }

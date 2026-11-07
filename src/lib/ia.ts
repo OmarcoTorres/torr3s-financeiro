@@ -96,3 +96,11 @@ export function resumoParaIA(d: { lanc: Lancamento[]; cats: Categoria[]; contas:
 
 export const perguntar = (pergunta: string, historico: { papel: "user" | "assistant"; texto: string }[], dados: unknown) =>
   chamar<{ texto: string; propostas: Proposta[] }>("/api/assistente", { pergunta, historico, dados });
+
+/** Um item lido das anotações (valor em reais; nomes como vieram da IA, ainda por casar com o app). */
+export interface ItemAnotacao {
+  tipo: "despesa" | "receita"; descricao: string; valor: number; data: string; status: "pago" | "pendente";
+  vencimento: string; categoria: string; conta: string; pessoa: string; parcelas: number; duvida: string;
+}
+export const lerAnotacoes = (d: { texto?: string; imagem?: string; categorias: string[]; contas: string[]; pessoas: string[] }) =>
+  chamar<{ lancamentos: ItemAnotacao[]; ignorado?: string }>("/api/ler-anotacoes", { ...d, hoje: hoje() });

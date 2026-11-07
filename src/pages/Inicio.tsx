@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { AlertTriangle, CalendarCheck, Check, ChevronRight, CreditCard, Eye, EyeOff, Lightbulb, MessageSquareText, PieChart, ScanLine, Target } from "lucide-react";
+import { NotebookPen, AlertTriangle, CalendarCheck, Check, ChevronRight, CreditCard, Eye, EyeOff, Lightbulb, MessageSquareText, PieChart, ScanLine, Target } from "lucide-react";
 import { ehCartao, type Lancamento, type Perfil } from "../db";
 import { hoje, mesAtual, saldosContas, situacao, somarDias, totais } from "../lib/calc";
 import { dinheiro, mesExtenso } from "../lib/format";
@@ -15,8 +15,8 @@ import { ICONES } from "../components/ui";
 export type Progresso = { contas?: boolean; relatorio?: boolean; backup?: boolean; oculto?: boolean };
 export type Destino = "transacoes" | "relatorios" | "pessoas" | "cartoes" | "metas" | "fechamento" | "contas" | "backup" | "perfil";
 
-export function Inicio({ dados, perfil, userId, abrir, novo, lerConta, perguntar, ir }: {
-  userId?: string;
+export function Inicio({ dados, perfil, userId, abrir, novo, lerConta, anotar, perguntar, ir }: {
+  userId?: string; anotar: () => void;
   dados: DadosApp; perfil: Perfil; abrir: (l: Lancamento) => void; novo: () => void; lerConta: () => void; perguntar: () => void; ir: (d: Destino) => void;
 }) {
   const [prog, setProg] = useConfig<Progresso>("progresso", {});
@@ -24,12 +24,12 @@ export function Inicio({ dados, perfil, userId, abrir, novo, lerConta, perguntar
   const [ocultar, setOcultar] = useConfig("ocultarValores", true);
   return (
     // O olho esconde só os saldos do topo; o resto do painel mostra os números (senão a tela abre sem informação).
-    <Painel dados={dados} perfil={perfil} userId={userId} abrir={abrir} novo={novo} lerConta={lerConta} perguntar={perguntar} ir={ir} prog={prog} setProg={setProg} ocultar={ocultar} alternar={() => setOcultar(!ocultar)} />
+    <Painel dados={dados} perfil={perfil} userId={userId} abrir={abrir} novo={novo} lerConta={lerConta} anotar={anotar} perguntar={perguntar} ir={ir} prog={prog} setProg={setProg} ocultar={ocultar} alternar={() => setOcultar(!ocultar)} />
   );
 }
 
-function Painel({ dados, perfil, userId, abrir, novo, lerConta, perguntar, ir, prog, setProg, ocultar, alternar }: {
-  userId?: string; dados: DadosApp; perfil: Perfil; abrir: (l: Lancamento) => void; novo: () => void; lerConta: () => void; perguntar: () => void; ir: (d: Destino) => void;
+function Painel({ dados, perfil, userId, abrir, novo, lerConta, anotar, perguntar, ir, prog, setProg, ocultar, alternar }: {
+  userId?: string; anotar: () => void; dados: DadosApp; perfil: Perfil; abrir: (l: Lancamento) => void; novo: () => void; lerConta: () => void; perguntar: () => void; ir: (d: Destino) => void;
   prog: Progresso; setProg: (p: Progresso) => Promise<void>; ocultar: boolean; alternar: () => void;
 }) {
   const $ = useDinheiro();
@@ -93,6 +93,7 @@ function Painel({ dados, perfil, userId, abrir, novo, lerConta, perguntar, ir, p
       </div>
 
       <div className="atalhos">
+        <button type="button" className="btn" onClick={anotar}><span className="bolha"><NotebookPen size={18} /></span>Lançar das anotações</button>
         <button type="button" className="btn" onClick={lerConta}><span className="bolha"><ScanLine size={18} /></span>Ler conta pela foto</button>
         <button type="button" className="btn" onClick={perguntar}><span className="bolha"><MessageSquareText size={18} /></span>Perguntar sobre os números</button>
         <button type="button" className="btn" onClick={() => ir("fechamento")}><span className="bolha"><CalendarCheck size={18} /></span>Fechar o mês</button>

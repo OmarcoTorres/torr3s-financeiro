@@ -54,3 +54,35 @@ export function mensagemDeErro(e: unknown) {
   }
   return "Não foi possível falar com a IA agora.";
 }
+
+/**
+ * Extração estruturada (JSON validado pelo schema) com o modelo atual.
+ * - Saída por `output_config.format` (o Opus 5.5 recusa `tool_choice` forçado com erro 400).
+ * - Fallback do servidor em caso de recusa por política (`fallbacks: "default"`): a mesma chamada
+ *   é refeita em outro modelo automaticamente.
+ * - O schema precisa de `additionalProperties: false` e todos os campos em `required`.
+ */
+export async function extrairJSON<T>(o: {
+  sistema: string;
+  conteudo: Anthropic.Beta.BetaContentBlockParam[];
+  schema: Record<string, unknown>;
+  esforco?: "low" | "medium" | "high";
+  maxTokens?: number;
+}): Promise<T> {
+  const msg = await cliente().beta.messages.create({
+    model: MODELO,
+    max_tokens: o.maxTokens ?? 8000,
+    betas: ["server-side-fallback-2026-07-01"],
+    fallbacks: "default",
+    system: o.sistema,
+    output_config: { effort: o.esforco ?? "low", format: { type: "json_schema", schema: o.schema } },
+    messages: [{ role: "user", content: o.conteudo }],
+  });
+  if (msg.stop_reason === "refusal") throw new ErroLeitura("A IA não processou este conteúdo. Tente reescrever ou usar outra foto.");
+  if (msg.stop_reason === "max_tokens") throw new ErroLeitura("Conteúdo grande demais de uma vez. Divida em partes menores.");
+  const texto = msg.content.filter((b): b is Anthropic.Beta.BetaTextBlock => b.type === "text").map((b) => b.text).join("");
+  try { return JSON.parse(texto) as T; } catch { throw new ErroLeitura("A IA respondeu num formato inesperado. Tente de novo."); }
+}
+
+/** Erro com mensagem já pronta para mostrar a quem usa. */
+export class ErroLeitura extends Error {}

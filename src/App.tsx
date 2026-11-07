@@ -18,6 +18,7 @@ import { GuiaInstalacao } from "./components/Instalar";
 import { instalado } from "./lib/push";
 import { LancamentoForm, type Rascunho } from "./components/LancamentoForm";
 import { LerConta } from "./components/LerConta";
+import { LerAnotacoes } from "./components/LerAnotacoes";
 import { BannerVersao, IndicadorSync } from "./components/Nuvem";
 import { Assistente } from "./components/Assistente";
 import { BoasVindas } from "./components/BoasVindas";
@@ -151,6 +152,7 @@ function Painel({ email, userId }: { email: string; userId: string }) {
   const [rascunho, setRascunho] = useState<Rascunho | null>(null);
   const [fotoNova, setFotoNova] = useState<Blob>();
   const [lerAberto, setLerAberto] = useState(false);
+  const [anotacoesAberto, setAnotacoesAberto] = useState(false);
   const [perguntaAberta, setPerguntaAberta] = useState(false);
   const naoLidos = useAvisosNaoLidos();
   // Tocar numa notificação abre o app em #avisos: vai para o histórico dentro do assistente.
@@ -242,7 +244,7 @@ function Painel({ email, userId }: { email: string; userId: string }) {
 
         <ConvitesRecebidos />
         <PedidosParaMim />
-        {aba === "inicio" && <Inicio dados={dados} perfil={perfil} userId={userId} abrir={abrir} novo={novo} lerConta={() => setLerAberto(true)} perguntar={() => setPerguntaAberta(true)} ir={ir} />}
+        {aba === "inicio" && <Inicio dados={dados} perfil={perfil} userId={userId} abrir={abrir} novo={novo} lerConta={() => setLerAberto(true)} anotar={() => setAnotacoesAberto(true)} perguntar={() => setPerguntaAberta(true)} ir={ir} />}
         {aba === "transacoes" && <Lancamentos dados={dados} abrir={abrir} />}
         {aba === "cartoes" && <Cartoes dados={dados} abrir={abrir} pagar={(r) => { setFotoNova(undefined); setRascunho(r); }} />}
         {aba === "metas" && <Metas dados={dados} />}
@@ -256,6 +258,7 @@ function Painel({ email, userId }: { email: string; userId: string }) {
       <BannerVersao />
       <CelebracaoCoracoes />
       <LancamentoForm rascunho={rascunho} fotoNova={fotoNova} dados={dados} fechar={() => { setRascunho(null); setFotoNova(undefined); }} />
+      <LerAnotacoes aberta={anotacoesAberto} fechar={() => setAnotacoesAberto(false)} dados={dados} />
       <LerConta aberta={lerAberto} fechar={() => setLerAberto(false)} dados={dados} aoLer={(r, foto) => { setLerAberto(false); setFotoNova(foto); setRascunho(r); }} />
       <Assistente aberta={perguntaAberta} fechar={() => setPerguntaAberta(false)} dados={dados} />
       {tour && <Tour passos={TOUR} aoFechar={() => { setTour(false); setTimeout(() => void oferecerGuia(), 600); }} />}
