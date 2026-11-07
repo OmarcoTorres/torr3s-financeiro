@@ -1,14 +1,14 @@
 import { useEffect, useState } from "react";
 import { Heart, Plus, QrCode, Target, Users } from "lucide-react";
-import { extrasDaMinhaMeta, guardarNaMetaDoGrupo, removerAporteDoGrupo, useGrupos, useGruposEstado, useTemaAtivo, type MetaGrupo } from "../lib/grupos";
-import { frase, primeiroNome, temaDe } from "../lib/tema";
+import { atualizarGrupo, extrasDaMinhaMeta, removerAporteDoGrupo, useGrupos, useGruposEstado, useTemaAtivo, type MetaGrupo } from "../lib/grupos";
+import { TEMAS, TIPOS, frase, primeiroNome, temaDe } from "../lib/tema";
 import { supabase } from "../lib/supabase";
 import { CaixinhaDoGrupo } from "../components/Caixinha";
 import { FormChavePix, PainelPix } from "../components/PixDireto";
 import { useChavePix } from "../lib/chavePix";
 import { SeuGrupo } from "../components/Grupo";
 import { PedirPix } from "../components/PedidosPix";
-import { celebrarDeposito, mensagemDeCarinho } from "../components/Coracoes";
+import { depositarNaMeta } from "../lib/deposito";
 import { useCaixinhasEstado } from "../lib/caixinha";
 import { db, novoId, type Meta } from "../db";
 import { hoje, mesAtual } from "../lib/calc";
@@ -69,8 +69,9 @@ export function Metas({ dados }: { dados: DadosApp }) {
   const [grupoAberto, setGrupoAberto] = useState(false);
   const grupos = useGrupos();
   const meuId = useMeuId();
-  const { tema, parceiros } = useTemaAtivo(meuId);
+  const { tema, parceiros, grupo: grupoTema } = useTemaAtivo(meuId);
   const caixinhas = useCaixinhasEstado();
+  const avisoTipo = useAviso();
   const extra = (m: Meta) => (m.grupoId ? extrasDaMinhaMeta(m.id, grupos.metas) : 0);
   const metas = [...dados.metas].sort((a, b) => resumoMeta({ ...a, guardado: a.guardado + extra(a) }).pct - resumoMeta({ ...b, guardado: b.guardado + extra(b) }).pct);
   const dosOutros = grupos.metas.filter((m) => !m.minha);
@@ -97,6 +98,22 @@ export function Metas({ dados }: { dados: DadosApp }) {
             <h2>{tema?.tituloMetas ?? "Metas do grupo"}</h2>
             <button type="button" className="btn fantasma" onClick={() => setGrupoAberto(true)}><Users size={16} />Grupo</button>
           </div>
+          {grupoTema?.tipo === "outro" && (
+            <div className="bloco" style={{ gap: 8 }}>
+              <b>O que vocês são?</b>
+              <span className="muted" style={{ fontSize: ".84rem" }}>Escolha e o app ganha o jeito do grupo: mensagens, incentivos e cores.</span>
+              <div className="linha-botoes">
+                {TIPOS.filter((t) => t !== "outro").map((t) => (
+                  <button key={t} type="button" className="chip" onClick={async () => {
+                    try {
+                      await atualizarGrupo(grupoTema.id, grupoTema.nome === "Nosso grupo" ? TEMAS[t].nomeSugerido : grupoTema.nome, t);
+                      avisoTipo(`Pronto: grupo de ${TEMAS[t].rotulo.toLowerCase()}.`);
+                    } catch (e) { avisoTipo(String((e as Error).message)); }
+                  }}>{TEMAS[t].rotulo}</button>
+                ))}
+              </div>
+            </div>
+          )}
           {compartilhadas.length > 0 ? (
             <>
               <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
@@ -279,9 +296,7 @@ function DetalheMetaGrupo({ m, meuId, fechar }: { m?: MetaGrupo; meuId?: string;
     if (v <= 0) { aviso("Informe um valor."); return; }
     setTrabalhando(true);
     try {
-      const antes = m!.guardado + somaGrupo;
-      await guardarNaMetaDoGrupo(m!, v); setValor(""); setPix(null);
-      celebrarDeposito({ valor: v, metaNome: m!.nome, antes, depois: antes + v, alvo: m!.alvo, cor: tema.cor, mensagem: mensagemDeCarinho(v, m!.nome, m!.alvo - antes - v) });
+      await depositarNaMeta({ doGrupo: m!, somaGrupo, valor: v, cor: tema.cor }); setValor(""); setPix(null);
     }
     catch (e) { aviso(navigator.onLine ? String((e as Error).message) : "Sem internet agora: para guardar na meta do grupo é preciso estar conectado."); }
     finally { setTrabalhando(false); }
@@ -323,13 +338,11 @@ function DetalheMeta({ m: original, fechar, editar }: { m: Meta; fechar: () => v
   async function movimentar(sinal: 1 | -1, valorPix?: number) {
     const v = valorPix ?? lerValor(valor) ?? 0;
     if (v <= 0) { aviso("Informe um valor."); return; }
-    const guardado = Math.max(0, m.guardado + sinal * v);
-    await db.metas.update(m.id, { guardado, aportes: [...m.aportes, { data: hoje(), valor: sinal * v }] });
     setValor(""); setPix(null);
-    if (sinal > 0 && (m.grupoId || valorPix)) {
-      const antes = m.guardado + somaGrupo;
-      celebrarDeposito({ valor: v, metaNome: m.nome, antes, depois: antes + v, alvo: m.alvo, cor: tema?.cor ?? m.cor, mensagem: mensagemDeCarinho(v, m.nome, m.alvo - antes - v) });
-    } else aviso(sinal > 0 ? `${dinheiro(v)} guardados.` : `${dinheiro(v)} retirados.`);
+    // Guardar (Pix ou "Já guardei"): grava, comemora com "Desfazer" e avisa o grupo se a meta for compartilhada.
+    if (sinal > 0) { await depositarNaMeta({ minha: m, somaGrupo, valor: v, cor: tema?.cor ?? m.cor }); return; }
+    await db.metas.update(m.id, { guardado: Math.max(0, m.guardado - v), aportes: [...m.aportes, { data: hoje(), valor: -v }] });
+    aviso(`${dinheiro(v)} retirados.`);
   }
   return (
     <Folha titulo={m.nome} aberta fechar={fechar} acoes={<button type="button" className="btn" onClick={() => editar(m)}>Editar</button>}>

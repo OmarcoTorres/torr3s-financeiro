@@ -6,7 +6,7 @@ import { dinheiro } from "../lib/format";
  * Comemoração de depósito: mensagem de carinho + corações subindo até a barra da meta,
  * que anda do progresso antigo até o novo. Disparada de qualquer tela com celebrarDeposito().
  */
-export interface Celebracao { valor: number; mensagem: string; metaNome?: string; antes?: number; depois?: number; alvo?: number; cor?: string }
+export interface Celebracao { valor: number; mensagem: string; metaNome?: string; antes?: number; depois?: number; alvo?: number; cor?: string; desfazer?: () => Promise<void> }
 
 let atual: (Celebracao & { chave: number }) | null = null;
 const ouvintes = new Set<() => void>();
@@ -22,9 +22,16 @@ const MENSAGENS = [
   "Amor também é planejar o amanhã de mãos dadas. 💕",
   "Você + eu + {v} = sonho mais perto. ❤️",
 ];
-/** Mensagem de carinho para o depósito ({v} vira o valor). */
-export function mensagemDeCarinho(valor: number, metaNome?: string, falta?: number) {
-  const base = MENSAGENS[Math.floor(Math.random() * MENSAGENS.length)].replace("{v}", dinheiro(valor));
+const NEUTRAS = [
+  "Mais {v} guardados. Constância é o que faz a meta andar. 👏",
+  "Boa! {v} a mais no seu objetivo.",
+  "Cada depósito conta. Mais {v} guardados.",
+  "Seu eu do futuro agradece esses {v}. 🙌",
+];
+/** Mensagem do depósito ({v} vira o valor). Carinho (casal) só em meta compartilhada; nas pessoais, tom neutro. */
+export function mensagemDeCarinho(valor: number, metaNome?: string, falta?: number, carinho = true) {
+  const lista = carinho ? MENSAGENS : NEUTRAS;
+  const base = lista[Math.floor(Math.random() * lista.length)].replace("{v}", dinheiro(valor));
   if (metaNome && falta !== undefined) return falta <= 0 ? `${base}\nA meta “${metaNome}” foi alcançada! 🎉` : `${base}\nFaltam ${dinheiro(falta)} para “${metaNome}”.`;
   return base;
 }
@@ -36,14 +43,18 @@ export function CelebracaoCoracoes() {
   const temMeta = !!(c?.alvo && c.alvo > 0);
   const de = temMeta ? Math.min(100, ((c!.antes ?? 0) / c!.alvo!) * 100) : 0;
   const para = temMeta ? Math.min(100, ((c!.depois ?? 0) / c!.alvo!) * 100) : 0;
+  // Marco: passou de 25/50/75/100% neste depósito → comemoração completa; senão, versão curta.
+  const marco = temMeta ? [100, 75, 50, 25].find((m) => de < m && para >= m) : undefined;
+  const [estado, setEstado] = useState<"" | "desfazendo" | "desfeito">("");
 
   // Corações com posição, atraso, tamanho e balanço sorteados (estáveis durante a comemoração).
-  const coracoes = useMemo(() => Array.from({ length: reduzir ? 0 : 26 }, (_, i) => ({
+  const coracoes = useMemo(() => Array.from({ length: reduzir ? 0 : marco ? 30 : 10 }, (_, i) => ({
     i, x: 8 + Math.random() * 84, atraso: Math.random() * 1.4, dur: 2.2 + Math.random() * 1.6, tam: 16 + Math.random() * 26, balanco: (Math.random() - 0.5) * 80,
-  })), [c?.chave, reduzir]); // eslint-disable-line react-hooks/exhaustive-deps
+  })), [c?.chave, reduzir, marco]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!c) return;
+    setEstado("");
     let quadro = 0;
     const DURACAO = 1800, ESPERA = 350;
     const inicio = performance.now() + ESPERA;
@@ -53,8 +64,9 @@ export function CelebracaoCoracoes() {
       if (x < 1) quadro = requestAnimationFrame(passo);
     };
     if (reduzir) setT(1); else { setT(0); quadro = requestAnimationFrame(passo); }
-    const t2 = window.setTimeout(fechar, reduzir ? 4500 : 7000);
-    try { navigator.vibrate?.([30, 60, 30]); } catch { /* sem vibração */ }
+    // Com "Desfazer" na tela, fica tempo suficiente para a pessoa perceber e tocar.
+    const t2 = window.setTimeout(fechar, marco ? 7500 : 5500);
+    try { navigator.vibrate?.(marco ? [40, 60, 40, 60, 80] : [30]); } catch { /* sem vibração */ }
     return () => { cancelAnimationFrame(quadro); window.clearTimeout(t2); };
   }, [c?.chave]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -72,6 +84,7 @@ export function CelebracaoCoracoes() {
       <div className="celebra-cartao" onClick={(e) => e.stopPropagation()}>
         <Heart className="celebra-pulso" fill={cor} color={cor} size={44} aria-hidden />
         <b className="num" style={{ fontFamily: "var(--display)", fontSize: "1.6rem" }} aria-label={`Mais ${dinheiro(c.valor)}`}>+{dinheiro(valorAgora)}</b>
+        {marco && <b style={{ color: cor, fontSize: "1.05rem" }}>{marco === 100 ? "Meta alcançada! 🎉" : marco === 50 ? "Metade do caminho! 🎉" : `${marco}% da meta! 🎉`}</b>}
         <p style={{ whiteSpace: "pre-line", textAlign: "center", margin: 0 }}>{c.mensagem}</p>
         {temMeta && (
           <div style={{ display: "grid", gap: 6, width: "100%" }}>
@@ -80,7 +93,17 @@ export function CelebracaoCoracoes() {
             <span className="muted num" style={{ fontSize: ".8rem", textAlign: "center" }}>{dinheiro(totalAgora)} de {dinheiro(c.alvo!)}</span>
           </div>
         )}
-        <button type="button" className="btn pri" onClick={fechar}>💕 Obrigado</button>
+        {estado === "desfeito" ? <span className="muted">Depósito desfeito. Nada foi lançado.</span> : (
+          <div className="linha-botoes" style={{ justifyContent: "center" }}>
+            <button type="button" className="btn pri" onClick={fechar}>💕 Obrigado</button>
+            {c.desfazer && (
+              <button type="button" className="btn fantasma" disabled={estado === "desfazendo"} onClick={async () => {
+                setEstado("desfazendo");
+                try { await c.desfazer!(); setEstado("desfeito"); window.setTimeout(fechar, 1600); } catch { setEstado(""); }
+              }}>{estado === "desfazendo" ? "Desfazendo…" : "Desfazer"}</button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

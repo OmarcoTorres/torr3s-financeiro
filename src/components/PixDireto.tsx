@@ -3,13 +3,13 @@ import QRCode from "qrcode";
 import { Check, Copy, QrCode, Settings } from "lucide-react";
 import { db, type Meta, type Perfil } from "../db";
 import { useChavePix, type ChavePix } from "../lib/chavePix";
-import { hoje } from "../lib/calc";
 import { dinheiro, lerValor } from "../lib/format";
-import { extrasDaMinhaMeta, guardarNaMetaDoGrupo, useGruposEstado, useTemaAtivo } from "../lib/grupos";
+import { extrasDaMinhaMeta, useGruposEstado, useTemaAtivo } from "../lib/grupos";
 import { pixCopiaECola } from "../lib/pix";
 import { primeiroNome } from "../lib/tema";
 import { Campo, Folha, useAviso, useConfig } from "./ui";
 import { celebrarDeposito, mensagemDeCarinho } from "./Coracoes";
+import { depositarNaMeta } from "../lib/deposito";
 import { InputValor } from "./campos";
 
 /**
@@ -145,26 +145,16 @@ export function DepositarPix({ metasMinhas, meuId }: { metasMinhas: Meta[]; meuI
     if (!gerado) return;
     const v = gerado.valor;
     try {
-      let alvo: { nome: string; antes: number; alvo: number; cor: string } | undefined;
       if (meta.startsWith("minha:")) {
         const m = await db.metas.get(meta.slice(6));
-        if (m) {
-          const extra = m.grupoId ? extrasDaMinhaMeta(m.id, metasGrupo) : 0;
-          alvo = { nome: m.nome, antes: m.guardado + extra, alvo: m.alvo, cor: m.cor };
-          await db.metas.update(m.id, { guardado: m.guardado + v, aportes: [...m.aportes, { data: hoje(), valor: v }] });
-        }
+        if (m) await depositarNaMeta({ minha: m, somaGrupo: m.grupoId ? extrasDaMinhaMeta(m.id, metasGrupo) : 0, valor: v, cor: tema?.cor ?? m.cor });
       } else if (meta.startsWith("grupo:")) {
         const [, espaco, id] = meta.split(":");
         const m = dosOutros.find((x) => x.espaco_id === espaco && x.id === id);
-        if (m) {
-          alvo = { nome: m.nome, antes: m.guardado + m.aportes.reduce((a, x) => a + x.valor, 0), alvo: m.alvo, cor: m.cor };
-          await guardarNaMetaDoGrupo(m, v);
-        }
+        if (m) await depositarNaMeta({ doGrupo: m, somaGrupo: m.aportes.reduce((a, x) => a + x.valor, 0), valor: v, cor: tema?.cor ?? m.cor });
+      } else {
+        celebrarDeposito({ valor: v, cor: tema?.cor, mensagem: mensagemDeCarinho(v) });
       }
-      celebrarDeposito({
-        valor: v, metaNome: alvo?.nome, antes: alvo?.antes, depois: alvo ? alvo.antes + v : undefined, alvo: alvo?.alvo,
-        cor: tema?.cor ?? alvo?.cor, mensagem: mensagemDeCarinho(v, alvo?.nome, alvo ? alvo.alvo - alvo.antes - v : undefined),
-      });
       setGerado(null); setValor(""); setMeta(""); setAberta(false);
     } catch (e) {
       aviso(navigator.onLine ? String((e as Error).message) : "Sem internet: para guardar na meta de outra pessoa é preciso estar conectado.");

@@ -98,7 +98,7 @@ export async function criarGrupo(nome: string, tipo: TipoGrupo) {
 export async function atualizarGrupo(id: string, nome: string, tipo: TipoGrupo) { await rpc("atualizar_grupo", { p_grupo: id, p_nome: nome, p_tipo: tipo }); await recarregarGrupos(); }
 export async function sairDoGrupo(id: string) { await rpc("sair_do_grupo", { p_grupo: id }); await recarregarGrupos(); }
 export const gerarConviteDoGrupo = (id: string) => rpc<string>("gerar_convite_grupo", { p_grupo: id });
-export async function guardarNaMetaDoGrupo(m: MetaGrupo, valor: number) { await rpc("aportar_meta_grupo", { p_espaco: m.espaco_id, p_meta: m.id, p_valor: Math.round(valor) }); await recarregarGrupos(); }
+export async function guardarNaMetaDoGrupo(m: MetaGrupo, valor: number) { const id = await rpc<string>("aportar_meta_grupo", { p_espaco: m.espaco_id, p_meta: m.id, p_valor: Math.round(valor) }); await recarregarGrupos(); return id; }
 export async function removerAporteDoGrupo(id: string) { await rpc("remover_aporte_grupo", { p_id: id }); await recarregarGrupos(); }
 
 /** Quanto os outros do grupo guardaram numa meta minha (somado ao meu "guardado" local). */
