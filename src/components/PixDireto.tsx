@@ -4,19 +4,21 @@ import { Check, Copy, QrCode, Settings } from "lucide-react";
 import { db, type Meta } from "../db";
 import { hoje } from "../lib/calc";
 import { dinheiro, lerValor } from "../lib/format";
-import { guardarNaMetaDoGrupo, useGruposEstado, useTemaAtivo } from "../lib/grupos";
+import { extrasDaMinhaMeta, guardarNaMetaDoGrupo, useGruposEstado, useTemaAtivo } from "../lib/grupos";
 import { pixCopiaECola } from "../lib/pix";
-import { frase, primeiroNome } from "../lib/tema";
+import { primeiroNome } from "../lib/tema";
 import { Campo, Folha, useAviso, useConfig } from "./ui";
+import { celebrarDeposito, mensagemDeCarinho } from "./Coracoes";
 import { InputValor } from "./campos";
 
 /**
  * Depósito por Pix feito só no app: gera o QR Code / copia e cola para a chave Pix configurada neste aparelho.
  * O pagamento é feito no app do banco; "Já paguei" lança o valor na meta escolhida.
- * A chave fica salva só neste aparelho (não vai para o código nem para o servidor).
+ * Por padrão vai para a conta da caixinha (PADRAO); quem quiser troca a chave em ⚙️ (fica salva no aparelho).
  */
 type ConfigPix = { chave: string; recebedor: string; cidade: string };
-const PADRAO: ConfigPix = { chave: "", recebedor: "", cidade: "SAO PAULO" };
+/** Conta padrão da caixinha (Itaú do Marco). Dá para trocar em ⚙️ em cada aparelho. */
+const PADRAO: ConfigPix = { chave: "8f9267d2-f9ee-41f9-ad2e-fef63bb43798", recebedor: "Marco Torres", cidade: "SAO PAULO" };
 
 export function DepositarPix({ metasMinhas, meuId }: { metasMinhas: Meta[]; meuId?: string }) {
   const aviso = useAviso();
@@ -55,15 +57,26 @@ export function DepositarPix({ metasMinhas, meuId }: { metasMinhas: Meta[]; meuI
     if (!gerado) return;
     const v = gerado.valor;
     try {
+      let alvo: { nome: string; antes: number; alvo: number; cor: string } | undefined;
       if (meta.startsWith("minha:")) {
         const m = await db.metas.get(meta.slice(6));
-        if (m) await db.metas.update(m.id, { guardado: m.guardado + v, aportes: [...m.aportes, { data: hoje(), valor: v }] });
+        if (m) {
+          const extra = m.grupoId ? extrasDaMinhaMeta(m.id, metasGrupo) : 0;
+          alvo = { nome: m.nome, antes: m.guardado + extra, alvo: m.alvo, cor: m.cor };
+          await db.metas.update(m.id, { guardado: m.guardado + v, aportes: [...m.aportes, { data: hoje(), valor: v }] });
+        }
       } else if (meta.startsWith("grupo:")) {
         const [, espaco, id] = meta.split(":");
         const m = dosOutros.find((x) => x.espaco_id === espaco && x.id === id);
-        if (m) await guardarNaMetaDoGrupo(m, v);
+        if (m) {
+          alvo = { nome: m.nome, antes: m.guardado + m.aportes.reduce((a, x) => a + x.valor, 0), alvo: m.alvo, cor: m.cor };
+          await guardarNaMetaDoGrupo(m, v);
+        }
       }
-      aviso(tema && meta ? frase(tema.comemoracoes, { v: dinheiro(v) }, Date.now() % 7) : `Depósito de ${dinheiro(v)} registrado.`);
+      celebrarDeposito({
+        valor: v, metaNome: alvo?.nome, antes: alvo?.antes, depois: alvo ? alvo.antes + v : undefined, alvo: alvo?.alvo,
+        cor: tema?.cor ?? alvo?.cor, mensagem: mensagemDeCarinho(v, alvo?.nome, alvo ? alvo.alvo - alvo.antes - v : undefined),
+      });
       setGerado(null); setValor(""); setMeta(""); setAberta(false);
     } catch (e) {
       aviso(navigator.onLine ? String((e as Error).message) : "Sem internet: para guardar na meta de outra pessoa é preciso estar conectado.");

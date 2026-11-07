@@ -5,6 +5,7 @@ import { frase, primeiroNome, temaDe } from "../lib/tema";
 import { supabase } from "../lib/supabase";
 import { CaixinhaDoGrupo } from "../components/Caixinha";
 import { DepositarPix } from "../components/PixDireto";
+import { celebrarDeposito, mensagemDeCarinho } from "../components/Coracoes";
 import { useCaixinhasEstado } from "../lib/caixinha";
 import { db, novoId, type Meta } from "../db";
 import { hoje, mesAtual } from "../lib/calc";
@@ -171,7 +172,11 @@ function DetalheMetaGrupo({ m, meuId, fechar }: { m?: MetaGrupo; meuId?: string;
     const v = lerValor(valor) ?? 0;
     if (v <= 0) { aviso("Informe um valor."); return; }
     setTrabalhando(true);
-    try { await guardarNaMetaDoGrupo(m!, v); setValor(""); aviso(frase(tema.comemoracoes, { v: dinheiro(v) }, Date.now() % 7)); }
+    try {
+      const antes = m!.guardado + somaGrupo;
+      await guardarNaMetaDoGrupo(m!, v); setValor("");
+      celebrarDeposito({ valor: v, metaNome: m!.nome, antes, depois: antes + v, alvo: m!.alvo, cor: tema.cor, mensagem: mensagemDeCarinho(v, m!.nome, m!.alvo - antes - v) });
+    }
     catch (e) { aviso(navigator.onLine ? String((e as Error).message) : "Sem internet agora: para guardar na meta do grupo é preciso estar conectado."); }
     finally { setTrabalhando(false); }
   }
@@ -209,7 +214,10 @@ function DetalheMeta({ m: original, fechar, editar }: { m: Meta; fechar: () => v
     const guardado = Math.max(0, m.guardado + sinal * v);
     await db.metas.update(m.id, { guardado, aportes: [...m.aportes, { data: hoje(), valor: sinal * v }] });
     setValor("");
-    aviso(sinal > 0 ? (m.grupoId && tema ? frase(tema.comemoracoes, { v: dinheiro(v) }, Date.now() % 7) : `${dinheiro(v)} guardados.`) : `${dinheiro(v)} retirados.`);
+    if (sinal > 0 && m.grupoId) {
+      const antes = m.guardado + somaGrupo;
+      celebrarDeposito({ valor: v, metaNome: m.nome, antes, depois: antes + v, alvo: m.alvo, cor: tema?.cor ?? m.cor, mensagem: mensagemDeCarinho(v, m.nome, m.alvo - antes - v) });
+    } else aviso(sinal > 0 ? `${dinheiro(v)} guardados.` : `${dinheiro(v)} retirados.`);
   }
   return (
     <Folha titulo={m.nome} aberta fechar={fechar} acoes={<button type="button" className="btn" onClick={() => editar(m)}>Editar</button>}>

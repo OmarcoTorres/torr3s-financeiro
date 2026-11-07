@@ -422,3 +422,20 @@ input[type="date"]::-webkit-calendar-picker-indicator, input[type="month"]::-web
 .banner-versao .fechar { background: none; border: 0; color: inherit; opacity: .6; width: 30px; height: 30px; display: grid; place-items: center; cursor: pointer; flex: none; }
 .banner-versao .fechar svg { width: 16px; height: 16px; }
 @media (min-width: 900px) { .banner-versao { bottom: 104px; left: auto; right: 36px; transform: none; } }
+
+/* Comemoração de depósito: corações subindo até a meta */
+.celebra { position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; padding: 16px; background: color-mix(in srgb, var(--bg) 55%, transparent); backdrop-filter: blur(3px); overflow: hidden; animation: celebra-entra .25s ease-out; }
+.celebra-cartao { position: relative; z-index: 2; display: grid; justify-items: center; gap: 12px; width: min(360px, 100%); padding: 24px 20px; border-radius: 24px; background: var(--surface); color: var(--ink); box-shadow: 0 20px 60px rgba(0,0,0,.25); animation: celebra-sobe .45s cubic-bezier(.2,.9,.3,1.3); }
+.celebra-coracao { position: absolute; bottom: -60px; z-index: 1; opacity: 0; animation-name: celebra-voa; animation-timing-function: cubic-bezier(.3,.6,.4,1); animation-iteration-count: 2; filter: drop-shadow(0 4px 8px rgba(214,69,122,.35)); }
+.celebra-pulso { animation: celebra-pulsa 1s ease-in-out infinite; }
+.celebra-trilho { height: 12px; }
+@keyframes celebra-voa {
+  0% { transform: translate(0, 0) scale(.6) rotate(0); opacity: 0; }
+  12% { opacity: 1; }
+  60% { transform: translate(var(--balanco), -60vh) scale(1) rotate(12deg); opacity: .95; }
+  100% { transform: translate(0, -105vh) scale(.5) rotate(-8deg); opacity: 0; }
+}
+@keyframes celebra-pulsa { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.18); } }
+@keyframes celebra-sobe { from { transform: translateY(30px) scale(.92); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes celebra-entra { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .celebra, .celebra-cartao, .celebra-pulso { animation: none; } .celebra-coracao { display: none; } }

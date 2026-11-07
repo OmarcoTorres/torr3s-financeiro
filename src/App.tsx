@@ -8,6 +8,7 @@ import { aceitarConviteGrupo, convitePendente, iniciarSync, limparConvitePendent
 import { exportarBackup } from "./lib/backup";
 import { BotaoSair } from "./components/Sair";
 import { ConvitesRecebidos } from "./components/Grupo";
+import { CelebracaoCoracoes } from "./components/Coracoes";
 import { recarregarGrupos, useGrupos, useTemaAtivo } from "./lib/grupos";
 import { frase } from "./lib/tema";
 import { Login } from "./components/Login";
@@ -251,6 +252,7 @@ function Painel({ email, userId }: { email: string; userId: string }) {
       {aba !== "relatorios" && aba !== "mais" && <button type="button" className="fab" data-tour="lancar" aria-label="Nova transação" onClick={novo}><Plus /><span>Lançar</span></button>}
 
       <BannerVersao />
+      <CelebracaoCoracoes />
       <LancamentoForm rascunho={rascunho} fotoNova={fotoNova} dados={dados} fechar={() => { setRascunho(null); setFotoNova(undefined); }} />
       <LerConta aberta={lerAberto} fechar={() => setLerAberto(false)} dados={dados} aoLer={(r, foto) => { setLerAberto(false); setFotoNova(foto); setRascunho(r); }} />
       <Assistente aberta={perguntaAberta} fechar={() => setPerguntaAberta(false)} dados={dados} />
