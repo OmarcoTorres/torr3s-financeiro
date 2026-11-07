@@ -4,6 +4,7 @@ import { db, type Compartilhado, type Perfil } from "../db";
 import { supabase } from "./supabase";
 import { desligarPushAoSair } from "./push";
 import { LIMITE_FOTO, prepararFoto } from "./foto";
+import { criarFilaMiddleware } from "./filaMiddleware";
 
 /**
  * Sincronização com o Supabase.
@@ -67,7 +68,6 @@ export const useSync = () => useSyncExternalStore((f) => { ouvintes.add(f); retu
 
 // ---------- Fila de mudanças locais ----------
 const MARCA_REMOTA = "__invest_remoto";
-const ehRemota = (trans: unknown) => !!(trans as Record<string, unknown> | undefined)?.[MARCA_REMOTA];
 let agendado: number | undefined;
 function agendarEnvio() { window.clearTimeout(agendado); agendado = window.setTimeout(() => void ciclo(), 1200); }
 
@@ -77,26 +77,23 @@ async function enfileirar(tabela: string, id: string, op: "put" | "del") {
   agendarEnvio();
 }
 
-let ganchosInstalados = false;
-function instalarGanchos() {
-  if (ganchosInstalados) return;
-  ganchosInstalados = true;
-  for (const nome of [...NOMES, "fotos"]) {
-    const tabela = db.table(nome);
-    const chave = (pk: unknown, obj?: Record<string, unknown>) => String(pk ?? obj?.[TABELAS[nome]?.chaveLocal ?? "id"]);
-    tabela.hook("creating", function (pk, obj, trans) { if (!ehRemota(trans)) trans.on("complete", () => void enfileirar(nome, chave(pk, obj as Record<string, unknown>), "put")); });
-    tabela.hook("updating", function (_m, pk, _obj, trans) { if (!ehRemota(trans)) trans.on("complete", () => void enfileirar(nome, chave(pk), "put")); });
-    tabela.hook("deleting", function (pk, _obj, trans) { if (!ehRemota(trans)) trans.on("complete", () => void enfileirar(nome, chave(pk), "del")); });
-  }
-  db.config.hook("creating", function (pk, _obj, trans) { if (pk === "perfil" && !ehRemota(trans)) trans.on("complete", () => void enfileirar("perfil", "perfil", "put")); });
-  db.config.hook("updating", function (_m, pk, _obj, trans) { if (pk === "perfil" && !ehRemota(trans)) trans.on("complete", () => void enfileirar("perfil", "perfil", "put")); });
-}
+// A fila é gravada na mesma transação da mudança (ver filaMiddleware). Registrado antes de o banco abrir.
+let filaLigada = false;
+db.use(criarFilaMiddleware({
+  tabelas: [...NOMES, "fotos"],
+  fila: "fila",
+  marca: MARCA_REMOTA,
+  ativa: () => filaLigada,
+  aoConfirmar: () => { void db.fila.count().then((n) => mudar({ pendentes: n })); agendarEnvio(); },
+}));
+function instalarGanchos() { filaLigada = true; }
 
 /** Grava no banco local sem gerar nova ida ao servidor (dados que vieram de lá). */
 async function aplicarRemoto(tabelas: string[], fn: () => Promise<void>) {
   await db.transaction("rw", tabelas.map((t) => db.table(t)), async () => {
-    const t = Dexie.currentTransaction as unknown as Record<string, unknown>;
+    const t = Dexie.currentTransaction as unknown as { idbtrans?: Record<string, unknown> } & Record<string, unknown>;
     t[MARCA_REMOTA] = true;
+    if (t.idbtrans) t.idbtrans[MARCA_REMOTA] = true; // é o objeto que a fila (DBCore) enxerga
     await fn();
   });
 }
