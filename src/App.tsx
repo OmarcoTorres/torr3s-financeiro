@@ -4,7 +4,8 @@ import { ArrowLeftRight, BarChart3, CreditCard, LayoutGrid, MessageSquareText, M
 import type { Session } from "@supabase/supabase-js";
 import { db, removerExemplos, type Lancamento, type Perfil } from "./db";
 import { supabase, supabaseConfigurado } from "./lib/supabase";
-import { aceitarConviteGrupo, convitePendente, iniciarSync, limparConvitePendente } from "./lib/sync";
+import { aceitarConviteGrupo, convitePendente, iniciarSync, limparConvitePendente, PrecisaDecidir, type DecisaoLocal } from "./lib/sync";
+import { exportarBackup } from "./lib/backup";
 import { BotaoSair } from "./components/Sair";
 import { Login } from "./components/Login";
 import { Folha, useAviso, useConfig, useDados, marcarProgresso } from "./components/ui";
@@ -63,6 +64,7 @@ export default function App() {
   const [recuperando, setRecuperando] = useState(false);
   const [syncPronto, setSyncPronto] = useState<string | null>(null);
   const [erroSync, setErroSync] = useState("");
+  const [pergunta, setPergunta] = useState<PrecisaDecidir | null>(null);
 
   useEffect(() => {
     if (!supabaseConfigurado) { setSessao(null); return; }
@@ -77,9 +79,19 @@ export default function App() {
   const userId = sessao?.user.id;
   useEffect(() => {
     if (!userId || syncPronto === userId) return;
-    setErroSync("");
-    iniciarSync(userId).then(() => setSyncPronto(userId)).catch((e) => setErroSync(String(e?.message ?? e)));
+    setErroSync(""); setPergunta(null);
+    iniciarSync(userId).then(() => setSyncPronto(userId)).catch((e) => (e instanceof PrecisaDecidir ? setPergunta(e) : setErroSync(String(e?.message ?? e))));
   }, [userId, syncPronto]);
+
+  const decidir = async (decisao: DecisaoLocal | "cancelar") => {
+    if (!userId) return;
+    if (decisao === "cancelar") { await supabase.auth.signOut(); setPergunta(null); return; } // sai sem tocar nos dados do aparelho
+    if (decisao === "descartar") {
+      try { await exportarBackup(); } catch (e) { setErroSync(`Não deu para gerar o backup (${String((e as Error)?.message ?? e)}). Nada foi apagado.`); setPergunta(null); return; }
+    }
+    setPergunta(null);
+    iniciarSync(userId, decisao).then(() => setSyncPronto(userId)).catch((e) => setErroSync(String(e?.message ?? e)));
+  };
 
   // Só para conferência local das telas (VITE_SEM_LOGIN=1 no build); nunca configurado na Vercel.
   if (import.meta.env.VITE_SEM_LOGIN === "1") return <Painel email="teste@local" userId="local" />;
@@ -87,6 +99,21 @@ export default function App() {
   if (sessao === undefined) return <Carregando />;
   if (recuperando) return <Login modoInicial="nova-senha" aoDefinirSenha={() => setRecuperando(false)} />;
   if (!sessao) return <Login />;
+  if (pergunta) return (
+    <div className="conteudo" style={{ maxWidth: 560 }}>
+      <div className="aviso warn" role="alertdialog" aria-label="Dados neste aparelho"><div>
+        <b>Este aparelho tem {pergunta.itens} {pergunta.itens === 1 ? "registro que não está" : "registros que não estão"} nesta conta.</b>{" "}
+        {pergunta.motivo === "outra-conta" ? "Eles foram lançados com outra conta ou outro espaço." : "A conta já tem dados de outro aparelho."}{" "}
+        O que fazer com eles?
+        <div className="linha-botoes">
+          <button type="button" className="btn pri" onClick={() => void decidir("enviar")}>Enviar para esta conta</button>
+          <button type="button" className="btn" onClick={() => void decidir("descartar")}>Baixar backup e descartar</button>
+          <button type="button" className="btn fantasma" onClick={() => void decidir("cancelar")}>Cancelar (sair sem mexer)</button>
+        </div>
+        <div className="muted" style={{ fontSize: ".85rem", marginTop: 8 }}>Ao enviar, as categorias e contas deste aparelho entram junto e podem aparecer repetidas; dá para juntar depois.</div>
+      </div></div>
+    </div>
+  );
   if (erroSync) return (
     <div className="conteudo" style={{ maxWidth: 560 }}>
       <div className="aviso neg"><div>Não foi possível carregar sua conta agora ({erroSync}).

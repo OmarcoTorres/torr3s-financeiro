@@ -353,12 +353,30 @@ async function contarLocal() {
   return n;
 }
 
+/** Lançamentos, pessoas e metas de verdade (sem exemplos), fotos e mudanças ainda na fila. */
+async function contarDadosReais() {
+  return (await db.lancamentos.filter((l) => !l.exemplo).count())
+    + (await db.pessoas.filter((p) => !p.exemplo).count())
+    + (await db.metas.count()) + (await db.fotos.count()) + (await db.fila.count());
+}
+
+/** O que fazer com os dados que já estão no aparelho ao ligar numa conta/espaço que ele não conhecia. */
+export type DecisaoLocal = "enviar" | "descartar";
+export class PrecisaDecidir extends Error {
+  constructor(public itens: number, public motivo: "outra-conta" | "conta-com-dados") {
+    super(`${itens} ${itens === 1 ? "registro" : "registros"} neste aparelho`);
+    this.name = "PrecisaDecidir";
+  }
+}
+
 /**
  * Liga a sincronização para o usuário logado.
  * Primeira vez neste aparelho e espaço: se o servidor está vazio e o aparelho tem dados, envia tudo
  * (é assim que os dados de antes do login sobem); se o servidor já tem dados, o aparelho baixa tudo.
+ * Se isso fosse apagar dados reais do aparelho, lança PrecisaDecidir e a tela pergunta:
+ * enviar para a conta, baixar backup e descartar, ou cancelar. A resposta volta em `decisao`.
  */
-export async function iniciarSync(userId: string) {
+export async function iniciarSync(userId: string, decisao?: DecisaoLocal) {
   instalarGanchos();
   instalarGatilhos();
   usuarioAtual = userId;
@@ -377,24 +395,30 @@ export async function iniciarSync(userId: string) {
     throw error ?? new Error("Sem espaço");
   }
   sessaoPendente = false;
-  if (anterior && (anterior.espaco !== espaco || anterior.userId !== userId)) {
-    await limparDadosLocais();
-    await aplicarRemoto(["config"], async () => { await db.config.delete("perfil"); });
-  }
-  if (!anterior || anterior.espaco !== espaco || anterior.userId !== userId) {
+  const novaLigacao = !anterior || anterior.espaco !== espaco || anterior.userId !== userId;
+  if (novaLigacao) {
     let remoto = 0;
     for (const t of NOMES) {
       const { count } = await supabase.from(t).select("id", { count: "exact", head: true }).eq("espaco_id", espaco).eq("excluido", false);
       remoto += count ?? 0;
     }
-    if (remoto === 0 && (await contarLocal()) > 0) {
+    // Nunca apaga em silêncio o que a pessoa lançou neste aparelho: se há dados reais e o caminho seria apagar, pergunta.
+    const reais = await contarDadosReais();
+    let acao: DecisaoLocal;
+    if (decisao) acao = decisao;
+    else if (!anterior && remoto === 0) acao = "enviar"; // dados de antes do login sobem para a conta nova
+    else if (reais === 0) acao = "descartar"; // só categorias/contas padrão ou exemplos: a conta já tem as dela
+    else throw new PrecisaDecidir(reais, anterior ? "outra-conta" : "conta-com-dados");
+
+    if (acao === "descartar") {
+      await limparDadosLocais();
+      if (anterior) await aplicarRemoto(["config"], async () => { await db.config.delete("perfil"); });
+    } else if (await contarLocal() > 0) {
       const agora = Date.now();
       for (const t of TABELAS_DADOS) {
         const chaves = (await db.table(t).toCollection().primaryKeys()) as string[];
         await db.fila.bulkPut(chaves.map((id) => ({ chave: `${t}:${id}`, tabela: t, id: String(id), op: "put" as const, quando: agora })));
       }
-    } else if (remoto > 0) {
-      await limparDadosLocais();
     }
     await db.config.put({ chave: "sync", valor: { espaco, userId } });
   }
