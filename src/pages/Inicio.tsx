@@ -8,11 +8,15 @@ import { ItemCompartilhado, ItemLancamento } from "../components/ItemLancamento"
 import { OcultarValores, useConfig, useDinheiro, useTextoSemValores, type DadosApp } from "../components/ui";
 import { MiniCartao, situacaoCartao } from "./Cartoes";
 import { ItemMeta } from "./Metas";
+import { useTemaAtivo } from "../lib/grupos";
+import { frase } from "../lib/tema";
+import { ICONES } from "../components/ui";
 
 export type Progresso = { contas?: boolean; relatorio?: boolean; backup?: boolean; oculto?: boolean };
 export type Destino = "transacoes" | "relatorios" | "pessoas" | "cartoes" | "metas" | "fechamento" | "contas" | "backup" | "perfil";
 
-export function Inicio({ dados, perfil, abrir, novo, lerConta, perguntar, ir }: {
+export function Inicio({ dados, perfil, userId, abrir, novo, lerConta, perguntar, ir }: {
+  userId?: string;
   dados: DadosApp; perfil: Perfil; abrir: (l: Lancamento) => void; novo: () => void; lerConta: () => void; perguntar: () => void; ir: (d: Destino) => void;
 }) {
   const [prog, setProg] = useConfig<Progresso>("progresso", {});
@@ -20,13 +24,13 @@ export function Inicio({ dados, perfil, abrir, novo, lerConta, perguntar, ir }: 
   const [ocultar, setOcultar] = useConfig("ocultarValores", true);
   return (
     <OcultarValores value={ocultar}>
-      <Painel dados={dados} perfil={perfil} abrir={abrir} novo={novo} lerConta={lerConta} perguntar={perguntar} ir={ir} prog={prog} setProg={setProg} ocultar={ocultar} alternar={() => setOcultar(!ocultar)} />
+      <Painel dados={dados} perfil={perfil} userId={userId} abrir={abrir} novo={novo} lerConta={lerConta} perguntar={perguntar} ir={ir} prog={prog} setProg={setProg} ocultar={ocultar} alternar={() => setOcultar(!ocultar)} />
     </OcultarValores>
   );
 }
 
-function Painel({ dados, perfil, abrir, novo, lerConta, perguntar, ir, prog, setProg, ocultar, alternar }: {
-  dados: DadosApp; perfil: Perfil; abrir: (l: Lancamento) => void; novo: () => void; lerConta: () => void; perguntar: () => void; ir: (d: Destino) => void;
+function Painel({ dados, perfil, userId, abrir, novo, lerConta, perguntar, ir, prog, setProg, ocultar, alternar }: {
+  userId?: string; dados: DadosApp; perfil: Perfil; abrir: (l: Lancamento) => void; novo: () => void; lerConta: () => void; perguntar: () => void; ir: (d: Destino) => void;
   prog: Progresso; setProg: (p: Progresso) => Promise<void>; ocultar: boolean; alternar: () => void;
 }) {
   const $ = useDinheiro();
@@ -44,6 +48,9 @@ function Painel({ dados, perfil, abrir, novo, lerConta, perguntar, ir, prog, set
     .sort((a, b) => (a.vencimento ?? a.data).localeCompare(b.vencimento ?? b.data));
   const ultimas = [...dados.lanc].filter((l) => l.data <= h).sort((a, b) => b.data.localeCompare(a.data) || b.criadoEm.localeCompare(a.criadoEm)).slice(0, 5);
   const dica = useMemo(() => dicaDoDia(perfil, dados.lanc), [perfil, dados.lanc]);
+  const { tema, grupo, parceiros } = useTemaAtivo(userId);
+  const temaVale = !!tema && grupo?.tipo !== "outro";
+  const IconeTema = tema ? ICONES[tema.icone] : undefined;
 
   const porCategoria = useMemo(() => {
     const m = new Map<string, number>();
@@ -173,6 +180,13 @@ function Painel({ dados, perfil, abrir, novo, lerConta, perguntar, ir, prog, set
             : <div className="vazio"><Target /><div>Defina um objetivo e acompanhe o progresso.</div></div>}
         </section>
 
+        {temaVale && tema && IconeTema && (
+          <section className="aviso dica largo" style={{ background: `color-mix(in srgb, ${tema.cor} 10%, var(--surface))` }}>
+            <IconeTema style={{ color: tema.cor }} />
+            <div><b>Para {grupo?.nome ?? "vocês"}</b><p className="muted" style={{ marginTop: 2 }}>{frase(tema.mensagensDoDia, { p: parceiros })}</p>
+              <button type="button" className="btn fantasma" style={{ paddingLeft: 0 }} onClick={() => ir("metas")}>{tema.tituloMetas} ›</button></div>
+          </section>
+        )}
         <section className="aviso dica largo">
           <Lightbulb />
           <div><b>Dica para {OBJETIVOS[perfil.objetivo].titulo.toLowerCase()}</b><p className="muted" style={{ marginTop: 2 }}>{semValores(dica)}</p></div>

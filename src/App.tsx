@@ -7,6 +7,9 @@ import { supabase, supabaseConfigurado } from "./lib/supabase";
 import { aceitarConviteGrupo, convitePendente, iniciarSync, limparConvitePendente, PrecisaDecidir, type DecisaoLocal } from "./lib/sync";
 import { exportarBackup } from "./lib/backup";
 import { BotaoSair } from "./components/Sair";
+import { ConvitesRecebidos } from "./components/Grupo";
+import { recarregarGrupos, useGrupos, useTemaAtivo } from "./lib/grupos";
+import { frase } from "./lib/tema";
 import { Login } from "./components/Login";
 import { Folha, useAviso, useConfig, useDados, marcarProgresso } from "./components/ui";
 import { GuiaInstalacao } from "./components/Instalar";
@@ -171,19 +174,24 @@ function Painel({ email, userId }: { email: string; userId: string }) {
     const codigo = convitePendente();
     if (!perfil || !codigo) return;
     aceitarConviteGrupo(codigo)
-      .then((nome) => aviso(`Bem-vindo! Você e ${nome.split(" ")[0]} agora estão no mesmo grupo.`))
+      .then((nome) => { void recarregarGrupos(); aviso(`Bem-vindo! Você e ${nome.split(" ")[0]} agora estão no mesmo grupo.`); })
       .catch((e) => { limparConvitePendente(); aviso(String((e as Error).message)); });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [perfil]);
   // Versões antigas criavam lançamentos de exemplo: limpa ao abrir, o app começa sempre zerado.
   useEffect(() => { removerExemplos().catch(() => undefined); }, []);
   useEffect(() => { history.replaceState(null, "", `#${aba}`); window.scrollTo(0, 0); if (aba === "relatorios") marcarProgresso("relatorio"); }, [aba]);
+  // Grupos: carrega (e recarrega ao voltar ao app); o tema do grupo principal muda cores e mensagens.
+  useGrupos();
+  const temaGrupo = useTemaAtivo(userId);
+  const corAtiva = temaGrupo.tema && temaGrupo.visual && temaGrupo.grupo?.tipo !== "outro" ? temaGrupo.tema.cor : cor;
   useEffect(() => {
     const root = document.documentElement;
-    root.style.setProperty("--accent-base", cor);
-    root.style.setProperty("--accent-ink-base", corTexto(cor));
+    root.style.setProperty("--accent-base", corAtiva);
+    root.style.setProperty("--accent-ink-base", corTexto(corAtiva));
     if (tema === "sistema") root.removeAttribute("data-theme"); else root.setAttribute("data-theme", tema);
-  }, [cor, tema]);
+    if (temaGrupo.grupo) root.setAttribute("data-grupo", temaGrupo.grupo.tipo); else root.removeAttribute("data-grupo");
+  }, [corAtiva, tema, temaGrupo.grupo]);
   useEffect(() => { document.title = empresa ? `Invest+ · ${empresa}` : "Invest+"; }, [empresa]);
   useEffect(() => {
     if (perfil && tourPendente) { tourAgendado.current = true; setAba("inicio"); setTimeout(() => setTour(true), 350); setTourPendente(false); }
@@ -219,7 +227,7 @@ function Painel({ email, userId }: { email: string; userId: string }) {
           <div className="logo">{logo ? <img src={logo} alt="" /> : (empresa || perfil.nome).slice(0, 1).toUpperCase()}</div>
           <div style={{ minWidth: 0 }}>
             <h1>{aba === "inicio" ? saudacao(perfil.nome) : TITULO[aba]}</h1>
-            <div className="sub">{aba === "inicio" ? (perfil.uso === "empresa" && perfil.empresa ? perfil.empresa : new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" })) : empresa}</div>
+            <div className="sub">{aba === "inicio" ? (temaGrupo.tema && temaGrupo.grupo?.tipo !== "outro" ? frase(temaGrupo.tema.saudacoes, { p: temaGrupo.parceiros }) : perfil.uso === "empresa" && perfil.empresa ? perfil.empresa : new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" })) : empresa}</div>
           </div>
           <div className="acoes">
             <IndicadorSync />
@@ -230,7 +238,8 @@ function Painel({ email, userId }: { email: string; userId: string }) {
           </div>
         </header>
 
-        {aba === "inicio" && <Inicio dados={dados} perfil={perfil} abrir={abrir} novo={novo} lerConta={() => setLerAberto(true)} perguntar={() => setPerguntaAberta(true)} ir={ir} />}
+        <ConvitesRecebidos />
+        {aba === "inicio" && <Inicio dados={dados} perfil={perfil} userId={userId} abrir={abrir} novo={novo} lerConta={() => setLerAberto(true)} perguntar={() => setPerguntaAberta(true)} ir={ir} />}
         {aba === "transacoes" && <Lancamentos dados={dados} abrir={abrir} />}
         {aba === "cartoes" && <Cartoes dados={dados} abrir={abrir} pagar={(r) => { setFotoNova(undefined); setRascunho(r); }} />}
         {aba === "metas" && <Metas dados={dados} />}

@@ -56,6 +56,8 @@ export const ehCartao = (c?: Conta) => c?.tipo === "cartao";
 export interface Meta {
   id: string; nome: string; alvo: number; guardado: number; prazo?: string; // AAAA-MM
   icone: string; cor: string; aportes: { data: string; valor: number }[]; criadoEm: string;
+  /** Grupo com quem a meta é compartilhada (o grupo vê e guarda junto). */
+  grupoId?: string;
 }
 export interface Foto { id: string; blob: Blob }
 

@@ -5,6 +5,7 @@ import { supabase } from "./supabase";
 import { desligarPushAoSair } from "./push";
 import { LIMITE_FOTO, prepararFoto } from "./foto";
 import { criarFilaMiddleware } from "./filaMiddleware";
+import { limparGruposLocais } from "./grupos";
 
 /**
  * Sincronização com o Supabase.
@@ -19,7 +20,7 @@ const TABELAS: Record<string, { campos: Campo[]; chaveLocal?: string }> = {
   categorias: { campos: ["id", "nome", "tipo", "cor", "icone", "paiId"] },
   pessoas: { campos: ["id", "nome", "tipo", "telefone", "observacao", "userId"] },
   lancamentos: { campos: ["id", "tipo", "descricao", "valor", "data", "vencimento", "categoriaId", "contaId", "contaDestinoId", "pessoaId", "status", "observacao", "fotoId", "grupo", "parcela", "totalParcelas", "recorrente", "divisao", "compartilhado", "criadoEm"] },
-  metas: { campos: ["id", "nome", "alvo", "guardado", "prazo", "icone", "cor", "aportes", "criadoEm"] },
+  metas: { campos: ["id", "nome", "alvo", "guardado", "prazo", "icone", "cor", "aportes", "criadoEm", "grupoId"] },
   fechamentos: { campos: ["mes", "fechadoEm", "resumo"], chaveLocal: "mes" },
   relatorios: { campos: ["id", "nome", "config"] },
 };
@@ -521,5 +522,6 @@ export async function sairDaConta(opcoes: { descartarPendentes?: boolean } = {})
     for (const t of [...TABELAS_DADOS, "fila", "config", "compartilhados"]) await db.table(t).clear();
   });
   mudar({ status: "desligado", espacoId: undefined, pendentes: 0 });
+  limparGruposLocais();
   return { saiu: true };
 }

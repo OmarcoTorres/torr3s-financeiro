@@ -371,7 +371,7 @@ function ContaECompartilhar({ email, userId }: { email: string; userId: string }
       </div>
       <StatusNuvem />
 
-      <SeuGrupo />
+      <SeuGrupo userId={userId} />
 
       {espacos && espacos.length > 1 && (
         <div className="bloco">
