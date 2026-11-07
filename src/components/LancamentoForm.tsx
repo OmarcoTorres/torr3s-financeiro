@@ -5,6 +5,7 @@ import { hoje, mesDe, mesFechado, somarMeses } from "../lib/calc";
 import { dinheiro, lerValor, mesExtenso, numeroBR } from "../lib/format";
 import { BotaoConfirmar, Campo, Folha, Seg, useAviso, type DadosApp } from "./ui";
 import { CampoData, InputDigitos, InputPorcentagem, InputValor } from "./campos";
+import { prepararFoto } from "../lib/foto";
 
 export type Rascunho = Partial<Lancamento>;
 
@@ -105,8 +106,10 @@ export function LancamentoForm({ rascunho, fotoNova, fechar, dados }: { rascunho
 
     let fotoId = rascunho?.fotoId;
     if (foto) {
+      let pronta: Blob;
+      try { pronta = await prepararFoto(foto); } catch (e) { return setErro(String((e as Error).message)); }
       fotoId = fotoId ?? novoId();
-      await db.fotos.put({ id: fotoId, blob: foto });
+      await db.fotos.put({ id: fotoId, blob: pronta });
     }
     if (!foto && fotoId) { await db.fotos.delete(fotoId); fotoId = undefined; }
 

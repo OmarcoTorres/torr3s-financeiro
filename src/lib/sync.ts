@@ -3,6 +3,7 @@ import { useSyncExternalStore } from "react";
 import { db, type Compartilhado, type Perfil } from "../db";
 import { supabase } from "./supabase";
 import { desligarPushAoSair } from "./push";
+import { LIMITE_FOTO, prepararFoto } from "./foto";
 
 /**
  * Sincronização com o Supabase.
@@ -143,6 +144,14 @@ async function enviar(espaco: string, userId: string) {
       for (const id of puts) {
         const f = await db.fotos.get(id);
         if (!f) { dels.push(id); continue; }
+        // Foto guardada antes da compressão automática: reduz aqui para não esbarrar no limite do servidor.
+        if (f.blob.size > LIMITE_FOTO) {
+          try {
+            const menor = await prepararFoto(f.blob);
+            await aplicarRemoto(["fotos"], async () => { await db.fotos.put({ id, blob: menor }); });
+            f.blob = menor;
+          } catch (e) { falhas.set(`fotos:${id}`, textoErro(e)); continue; }
+        }
         const caminho = `${espaco}/${id}.jpg`;
         const up = await supabase.storage.from("fotos").upload(caminho, f.blob, { upsert: true, contentType: f.blob.type || "image/jpeg" });
         if (up.error) { recusado(`fotos:${id}`, up.error); continue; }
