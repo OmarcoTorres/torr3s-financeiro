@@ -4,6 +4,8 @@ import { extrasDaMinhaMeta, guardarNaMetaDoGrupo, removerAporteDoGrupo, useGrupo
 import { frase, primeiroNome, temaDe } from "../lib/tema";
 import { supabase } from "../lib/supabase";
 import { CaixinhaDoGrupo } from "../components/Caixinha";
+import { DepositarPix } from "../components/PixDireto";
+import { useCaixinhasEstado } from "../lib/caixinha";
 import { db, novoId, type Meta } from "../db";
 import { hoje, mesAtual } from "../lib/calc";
 import { dataCurta, dinheiro, lerValor, mesExtenso, numeroBR } from "../lib/format";
@@ -63,6 +65,7 @@ export function Metas({ dados }: { dados: DadosApp }) {
   const grupos = useGrupos();
   const meuId = useMeuId();
   const { tema, parceiros } = useTemaAtivo(meuId);
+  const caixinhas = useCaixinhasEstado();
   const extra = (m: Meta) => (m.grupoId ? extrasDaMinhaMeta(m.id, grupos.metas) : 0);
   const metas = [...dados.metas].sort((a, b) => resumoMeta({ ...a, guardado: a.guardado + extra(a) }).pct - resumoMeta({ ...b, guardado: b.guardado + extra(b) }).pct);
   const dosOutros = grupos.metas.filter((m) => !m.minha);
@@ -75,7 +78,7 @@ export function Metas({ dados }: { dados: DadosApp }) {
         <div className="kpi-card"><span className="rotulo">Já guardado</span><span className="v num pos">{dinheiro(total)}</span></div>
         <div className="kpi-card"><span className="rotulo">Somando as metas</span><span className="v num">{dinheiro(alvo)}</span></div>
       </div>
-      <CaixinhaDoGrupo meuId={meuId} />
+      {caixinhas.caixinhas.length > 0 ? <CaixinhaDoGrupo meuId={meuId} /> : <DepositarPix metasMinhas={dados.metas} meuId={meuId} />}
       {tema && (grupos.metas.length > 0 || grupos.grupos.length > 0) && (
         <section className="aviso dica largo" style={{ borderColor: tema.cor }}>
           <Heart style={{ color: tema.cor }} />
