@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { BookOpen, ChevronLeft, ChevronRight, CircleHelp, Download, Handshake, HeartHandshake, HeartPulse, LayoutGrid, Lock, ShieldCheck, Trash2, UserRound, Wallet } from "lucide-react";
+import { BookOpen, ChevronLeft, ChevronRight, CircleHelp, Download, Handshake, HeartHandshake, HeartPulse, LayoutGrid, Lock, ShieldCheck, Smartphone, Trash2, UserRound, Wallet } from "lucide-react";
 import { ID_PERFIL, bloquear, definirSoLocal, excluirTudo, exportar, salvar, trocarPin, useKaya } from "./dados";
 import { Chips, Secao } from "./pecas";
 import { APOIO, APRENDER, DISCLAIMER, FAQ, OP, PRINCIPIO, ROTULO_PERFIL, termo } from "./textos";
@@ -8,7 +8,7 @@ import type { Perfil, PerfilUso } from "./tipos";
 
 export type Sec = "" | "perfil" | "pacto" | "gastos" | "medicinal" | "aprender" | "faq" | "apoio" | "privacidade";
 
-export function Mais({ secao: sec, setSecao: setSec, sair }: { secao: Sec; setSecao: (s: Sec) => void; sair: () => void }) {
+export function Mais({ secao: sec, setSecao: setSec, sair, instalar }: { secao: Sec; setSecao: (s: Sec) => void; sair: () => void; instalar: () => void }) {
   const { itens } = useKaya();
   const p = perfilDe(itens)!;
   const medicinal = p.saude.length > 0 || p.perfilUso === "medicinal" || p.perfilUso === "misto";
@@ -42,6 +42,7 @@ export function Mais({ secao: sec, setSecao: setSec, sair }: { secao: Sec; setSe
         </section>
       ))}
       <section className="card"><div className="menu-lista">
+        <button type="button" onClick={instalar}><span className="ic-m"><Smartphone /></span><span>Instalar no celular<small>Ícone na tela de início, abre em tela cheia</small></span><ChevronRight /></button>
         <button type="button" onClick={bloquear}><span className="ic-m"><Lock /></span><span>Bloquear agora<small>Pede o PIN para abrir de novo</small></span><ChevronRight /></button>
         <button type="button" onClick={sair}><span className="ic-m"><LayoutGrid /></span><span>Trocar de módulo<small>Invest+, Vida+ ou Kaya Life</small></span><ChevronRight /></button>
       </div></section>

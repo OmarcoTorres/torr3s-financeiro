@@ -4,7 +4,7 @@ import { Leaf, PiggyBank, HeartPulse } from "lucide-react";
 import App from "../App";
 import { Login } from "../components/Login";
 import { supabase } from "../lib/supabase";
-import { irPara, moduloDaUrl, moduloSalvo, type Modulo } from "./modulos";
+import { hostKaya, irPara, moduloDaUrl, moduloSalvo, type Modulo } from "./modulos";
 
 const KayaApp = lazy(() => import("../modules/kaya/KayaApp"));
 
@@ -16,7 +16,7 @@ export function Raiz() {
     if (salvo && salvo !== "invest") { location.replace(salvo === "kaya" ? "/kaya" : "/vida"); return null; }
     return <App />;
   }
-  if (rota === "invest") { history.replaceState(null, "", "/" + location.hash); return <App />; }
+  if (rota === "invest") { if (!hostKaya()) history.replaceState(null, "", "/" + location.hash); return <App />; }
   return <ComSessao rota={rota} />;
 }
 

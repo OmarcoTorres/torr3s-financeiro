@@ -16,8 +16,8 @@ function Passo({ n, icone, children }: { n: number; icone: React.ReactNode; chil
   );
 }
 
-/** Passo a passo para instalar o Invest+ como app, conforme o aparelho. */
-export function GuiaInstalacao({ irNotificacoes }: { irNotificacoes?: () => void }) {
+/** Passo a passo para instalar o módulo (Invest+, Kaya Life…) como app, conforme o aparelho. */
+export function GuiaInstalacao({ irNotificacoes, nome = "Invest+", beneficio = "pode avisar de vencimentos, faturas e metas" }: { irNotificacoes?: () => void; nome?: string; beneficio?: string }) {
   const aviso = useAviso();
   const p = plataforma();
   const [convite, setConvite] = useState<EventoInstalar | null>(() => ((window as unknown as { __instalar?: EventoInstalar }).__instalar ?? null));
@@ -32,7 +32,7 @@ export function GuiaInstalacao({ irNotificacoes }: { irNotificacoes?: () => void
       <>
         <div className="bloco" style={{ justifyItems: "start" }}>
           <CheckCircle2 size={28} style={{ color: "var(--pos)" }} />
-          <b>O Invest+ já está instalado neste aparelho.</b>
+          <b>O {nome} já está instalado neste aparelho.</b>
           <span className="muted" style={{ fontSize: ".88rem" }}>Ele abre pelo ícone na tela de início, em tela cheia, como os outros apps.</span>
         </div>
         {irNotificacoes && <button type="button" className="btn pri grande" onClick={irNotificacoes}><Bell />Ativar lembretes de vencimento</button>}
@@ -42,13 +42,13 @@ export function GuiaInstalacao({ irNotificacoes }: { irNotificacoes?: () => void
 
   return (
     <>
-      <p className="muted">Instalado, o Invest+ ganha um ícone na tela de início, abre em tela cheia e pode avisar de vencimentos, faturas e metas.</p>
+      <p className="muted">Instalado, o {nome} ganha um ícone na tela de início, abre em tela cheia e {beneficio}.</p>
 
       {p === "ios-safari" && (
         <div className="card guia" style={{ boxShadow: "none", background: "var(--surface-2)" }}>
           <Passo n={1} icone={<Share size={20} />}>Toque em <b>Compartilhar</b> na barra do Safari (o quadrado com a seta para cima).</Passo>
           <Passo n={2} icone={<PlusSquare size={20} />}>Role a lista e toque em <b>Adicionar à Tela de Início</b>.</Passo>
-          <Passo n={3} icone={<Smartphone size={20} />}>Toque em <b>Adicionar</b>. Depois, abra o Invest+ pelo ícone novo.</Passo>
+          <Passo n={3} icone={<Smartphone size={20} />}>Toque em <b>Adicionar</b>. Depois, abra o {nome} pelo ícone novo.</Passo>
         </div>
       )}
 
@@ -60,12 +60,12 @@ export function GuiaInstalacao({ irNotificacoes }: { irNotificacoes?: () => void
       )}
 
       {p === "android" && (convite ? (
-        <button type="button" className="btn pri grande" onClick={async () => { await convite.prompt(); const r = await convite.userChoice; if (r.outcome === "accepted") aviso("Invest+ instalado."); setConvite(null); }}><Download />Instalar o app</button>
+        <button type="button" className="btn pri grande" onClick={async () => { await convite.prompt(); const r = await convite.userChoice; if (r.outcome === "accepted") aviso(`${nome} instalado.`); setConvite(null); }}><Download />Instalar o app</button>
       ) : (
         <div className="card guia" style={{ boxShadow: "none", background: "var(--surface-2)" }}>
           <Passo n={1} icone={<MoreVertical size={20} />}>No Chrome, toque no menu <b>⋮</b> no canto de cima.</Passo>
           <Passo n={2} icone={<Download size={20} />}>Toque em <b>Instalar app</b> (ou <b>Adicionar à tela inicial</b>).</Passo>
-          <Passo n={3} icone={<Smartphone size={20} />}>Confirme. O Invest+ aparece junto dos seus aplicativos.</Passo>
+          <Passo n={3} icone={<Smartphone size={20} />}>Confirme. O {nome} aparece junto dos seus aplicativos.</Passo>
         </div>
       ))}
 

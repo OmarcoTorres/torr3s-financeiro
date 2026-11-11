@@ -169,8 +169,8 @@ function Painel({ email, userId }: { email: string; userId: string }) {
   const tourAgendado = useRef(false);
   // Guia de instalação: aparece uma vez por aparelho, depois do primeiro acesso (se ainda não estiver instalado).
   const oferecerGuia = async () => {
-    if (instalado() || (await db.config.get("guia-visto"))) return;
-    await db.config.put({ chave: "guia-visto", valor: true });
+    // A cada visita (sessão do navegador) enquanto o app não estiver instalado.
+    try { if (instalado() || sessionStorage.getItem("guia:invest")) return; sessionStorage.setItem("guia:invest", "1"); } catch { return; }
     setGuiaAberto(true);
   };
 

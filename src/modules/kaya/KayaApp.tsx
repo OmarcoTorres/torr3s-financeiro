@@ -1,6 +1,8 @@
 import { Fragment, useEffect, useState } from "react";
 import { BookHeart, Cloud, CloudOff, History, LayoutGrid, LineChart, Lock, MoreHorizontal, Plus, RefreshCw } from "lucide-react";
 import { Folha } from "../../components/ui";
+import { GuiaInstalacao } from "../../components/Instalar";
+import { instalado } from "../../lib/push";
 import { abrirCofre, bloquear, sincronizar, useKaya } from "./dados";
 import { Cofre } from "./Cofre";
 import { Onboarding } from "./Onboarding";
@@ -13,7 +15,7 @@ import "./kaya.css";
 
 type Aba = "inicio" | "registros" | "insights" | "diario" | "mais";
 const ABAS: [Aba, string, typeof LayoutGrid][] = [["inicio", "Início", LayoutGrid], ["registros", "Registros", History], ["insights", "Insights", LineChart], ["diario", "Diário", BookHeart], ["mais", "Mais", MoreHorizontal]];
-export type Folhas = "registrar" | "pausa" | "diario" | null;
+export type Folhas = "registrar" | "pausa" | "diario" | "instalar" | null;
 
 /** Kaya Life: módulo isolado. Recebe só o usuário logado da plataforma; cofre, dados e tema são dele. */
 export default function KayaApp({ userId, trocarModulo }: { userId: string; trocarModulo: () => void }) {
@@ -32,6 +34,14 @@ export default function KayaApp({ userId, trocarModulo }: { userId: string; troc
   }, [userId]);
   useEffect(() => { history.replaceState(null, "", `#${aba}`); window.scrollTo(0, 0); }, [aba]);
   const perfil = perfilDe(k.itens);
+  // Guia de instalação: ao entrar no módulo (uma vez por visita) enquanto o app não estiver instalado.
+  const pronto = k.cofre === "aberto" && !!perfil;
+  useEffect(() => {
+    if (!pronto) return;
+    try { if (instalado() || sessionStorage.getItem("guia:kaya")) return; sessionStorage.setItem("guia:kaya", "1"); } catch { return; }
+    const t = setTimeout(() => setFolha("instalar"), 900);
+    return () => clearTimeout(t);
+  }, [pronto]);
   const ir = (a: Aba, s: Sec = "") => { setAba(a); setSecao(s); };
 
   if (k.cofre === "carregando") return <div className="kaya"><div className="conteudo" style={{ justifyItems: "center", minHeight: "60vh", alignContent: "center" }}><span className="carregando" aria-label="Carregando" /></div></div>;
@@ -74,12 +84,16 @@ export default function KayaApp({ userId, trocarModulo }: { userId: string; troc
           {aba === "registros" && <Registros novo={() => setFolha("registrar")} />}
           {aba === "insights" && <Insights />}
           {aba === "diario" && <DiarioTela novo={() => setFolha("diario")} />}
-          {aba === "mais" && <Mais secao={secao} setSecao={setSecao} sair={trocarModulo} />}
+          {aba === "mais" && <Mais secao={secao} setSecao={setSecao} sair={trocarModulo} instalar={() => setFolha("instalar")} />}
         </main>
         {aba !== "mais" && <button type="button" className="fab" aria-label="Registrar" onClick={() => setFolha("registrar")}><Plus /><span>Registrar</span></button>}
       </div>
       <Folha titulo="Registrar" aberta={folha === "registrar"} fechar={() => setFolha(null)}><Registrar fechar={() => setFolha(null)} pausar={() => setFolha("pausa")} /></Folha>
       <Folha titulo="Pausa consciente" aberta={folha === "pausa"} fechar={() => setFolha(null)}><PausaConsciente fechar={() => setFolha(null)} /></Folha>
+      <Folha titulo="Use o Kaya Life como app" aberta={folha === "instalar"} fechar={() => setFolha(null)}>
+        <GuiaInstalacao nome="Kaya Life" beneficio="fica protegido pelo seu PIN, como os outros apps" />
+        <button type="button" className="btn fantasma" onClick={() => setFolha(null)}>Agora não (fica em Mais › Instalar no celular)</button>
+      </Folha>
       <Folha titulo="Escrever no diário" aberta={folha === "diario"} fechar={() => setFolha(null)}><NovoDiario fechar={() => setFolha(null)} /></Folha>
     </div>
   );
