@@ -1,23 +1,27 @@
 import { useState } from "react";
-import { ChevronLeft, ChevronRight, Download, HeartHandshake, Lock, ShieldCheck, Trash2 } from "lucide-react";
+import { BookOpen, ChevronLeft, ChevronRight, CircleHelp, Download, Handshake, HeartHandshake, HeartPulse, LayoutGrid, Lock, ShieldCheck, Trash2, UserRound, Wallet } from "lucide-react";
 import { ID_PERFIL, bloquear, definirSoLocal, excluirTudo, exportar, salvar, trocarPin, useKaya } from "./dados";
 import { Chips, Secao } from "./pecas";
 import { APOIO, APRENDER, DISCLAIMER, FAQ, OP, PRINCIPIO, ROTULO_PERFIL, termo } from "./textos";
 import { Gastos, Medicinal, Pacto, perfilDe } from "./Telas";
 import type { Perfil, PerfilUso } from "./tipos";
 
-type Sec = "" | "perfil" | "pacto" | "gastos" | "medicinal" | "aprender" | "faq" | "apoio" | "privacidade";
+export type Sec = "" | "perfil" | "pacto" | "gastos" | "medicinal" | "aprender" | "faq" | "apoio" | "privacidade";
 
-export function Mais({ sair }: { sair: () => void }) {
+export function Mais({ secao: sec, setSecao: setSec, sair }: { secao: Sec; setSecao: (s: Sec) => void; sair: () => void }) {
   const { itens } = useKaya();
   const p = perfilDe(itens)!;
-  const [sec, setSec] = useState<Sec>("");
   const medicinal = p.saude.length > 0 || p.perfilUso === "medicinal" || p.perfilUso === "misto";
-  const itensMenu: [Sec, string][] = [["perfil", "Meu perfil e intenção"], ["pacto", "Pacto pessoal"], ["gastos", "Gastos e orçamento"], ...(medicinal ? [["medicinal", "Modo medicinal"] as [Sec, string]] : []),
-    ["aprender", "Aprender"], ["faq", "Perguntas frequentes"], ["apoio", "Apoio"], ["privacidade", "Privacidade e segurança"]];
+  type Op = [Sec, string, string, typeof Lock];
+  const grupos: [string, Op[]][] = [
+    ["Você", [["perfil", "Meu perfil e intenção", "Apelido, termo, norte e perfil de uso", UserRound], ["pacto", "Pacto pessoal", "Suas regras e como foi cada dia", Handshake], ["gastos", "Gastos e orçamento", "Quanto vai por mês e simulação de economia", Wallet],
+      ...(medicinal ? [["medicinal", "Modo medicinal", "Sintomas de 0 a 10 e relatório para o médico", HeartPulse] as Op] : [])]],
+    ["Conhecer e cuidar", [["aprender", "Aprender", "Riscos, mitos e verdades em cards curtos", BookOpen], ["faq", "Perguntas frequentes", "O que o Kaya Life é e o que não é", CircleHelp], ["apoio", "Apoio", "CVV, CAPS AD e pessoa de confiança", HeartHandshake]]],
+    ["Segurança", [["privacidade", "Privacidade e segurança", "Criptografia, PIN, exportar e excluir", ShieldCheck]]],
+  ];
   if (sec) return (
     <>
-      <button type="button" className="btn fantasma" style={{ justifySelf: "start" }} onClick={() => setSec("")}><ChevronLeft />Mais</button>
+      <button type="button" className="btn fantasma" style={{ justifySelf: "start", paddingLeft: 0 }} onClick={() => setSec("")}><ChevronLeft />Voltar</button>
       {sec === "perfil" && <MeuPerfil p={p} />}
       {sec === "pacto" && <Pacto />}
       {sec === "gastos" && <Gastos />}
@@ -31,8 +35,16 @@ export function Mais({ sair }: { sair: () => void }) {
   );
   return (
     <>
-      <Secao titulo="Mais"><div className="kaya-lista">{itensMenu.map(([k, n]) => <button key={k} type="button" className="btn fantasma" style={{ justifyContent: "space-between", color: "var(--ink)" }} onClick={() => setSec(k)}>{n}<ChevronRight /></button>)}</div></Secao>
-      <div className="linha-botoes"><button type="button" className="btn" onClick={bloquear}><Lock />Bloquear agora</button><button type="button" className="btn fantasma" onClick={sair}>Trocar de módulo</button></div>
+      <section className="card kaya-intencao"><span className="rotulo">{p.apelido || "Você"} · {ROTULO_PERFIL[p.perfilUso]}</span><div className="norte">{p.norte || "Registrar com honestidade e escolher com calma."}</div></section>
+      {grupos.map(([g, ops]) => (
+        <section key={g} className="card"><div className="cab"><h2>{g}</h2></div>
+          <div className="menu-lista">{ops.map(([k, n, d, I]) => <button key={k} type="button" onClick={() => setSec(k)}><span className="ic-m"><I /></span><span>{n}<small>{d}</small></span><ChevronRight /></button>)}</div>
+        </section>
+      ))}
+      <section className="card"><div className="menu-lista">
+        <button type="button" onClick={bloquear}><span className="ic-m"><Lock /></span><span>Bloquear agora<small>Pede o PIN para abrir de novo</small></span><ChevronRight /></button>
+        <button type="button" onClick={sair}><span className="ic-m"><LayoutGrid /></span><span>Trocar de módulo<small>Invest+, Vida+ ou Kaya Life</small></span><ChevronRight /></button>
+      </div></section>
       <p className="kaya-disclaimer">{PRINCIPIO}</p>
     </>
   );
@@ -89,8 +101,10 @@ function Privacidade() {
           <input type="checkbox" className="interruptor" checked={k.soLocal} onChange={(e) => void rodar(() => definirSoLocal(e.target.checked), e.target.checked ? "Pronto: nada mais vai para a nuvem." : "Sincronização cifrada ligada.")} /></label>
       </Secao>
       <Secao titulo="Trocar PIN">
-        <input type="password" inputMode="numeric" placeholder="PIN atual" value={pa} onChange={(e) => setPa(e.target.value.replace(/\D/g, ""))} aria-label="PIN atual" />
-        <input type="password" inputMode="numeric" placeholder="PIN novo (6 a 12 números)" value={pn} onChange={(e) => setPn(e.target.value.replace(/\D/g, ""))} aria-label="PIN novo" />
+        <div className="duas">
+          <label className="campo"><span>PIN atual</span><input type="password" inputMode="numeric" autoComplete="off" value={pa} onChange={(e) => setPa(e.target.value.replace(/\D/g, ""))} /></label>
+          <label className="campo"><span>PIN novo (6 a 12 números)</span><input type="password" inputMode="numeric" autoComplete="off" value={pn} onChange={(e) => setPn(e.target.value.replace(/\D/g, ""))} /></label>
+        </div>
         <button type="button" className="btn" disabled={pa.length < 6 || pn.length < 6} onClick={() => void rodar(() => trocarPin(pa, pn).then(() => { setPa(""); setPn(""); }), "PIN trocado.")}>Trocar</button>
       </Secao>
       <Secao titulo="Levar ou apagar">

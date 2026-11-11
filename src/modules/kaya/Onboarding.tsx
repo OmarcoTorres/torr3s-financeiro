@@ -43,6 +43,7 @@ export function Onboarding({ aoTerminar }: { aoTerminar?: () => void }) {
 
   const telas = [
     <>
+      <img src="/kaya/logo.jpg" alt={NOME} className="kaya-logo-grande" />
       <h1>Bem-vindo(a) ao {NOME}</h1>
       <p>Um espaço calmo para <b>registrar e entender</b> a sua relação com a planta, no seu ritmo.</p>
       <p><b>O que ele não é:</b> não vende, não indica produtos nem doses, não julga e não prescreve. {PRINCIPIO}</p>
