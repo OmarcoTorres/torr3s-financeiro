@@ -29,5 +29,11 @@
       "path": "/api/lembretes",
       "schedule": "0 11 * * *"
     }
+  ],
+  "rewrites": [
+    {
+      "source": "/((?!api/|assets/)[^.]*)",
+      "destination": "/index.html"
+    }
   ]
 }

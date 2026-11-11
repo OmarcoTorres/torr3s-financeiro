@@ -2,7 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 // Atualização do app: baixa em segundo plano e avisa quando a versão nova está pronta.
 import "./lib/versao";
-import App from "./App";
+import { Raiz } from "./plataforma/Raiz";
 import { AvisoProvider } from "./components/ui";
 import "./styles.css";
 import { capturarConviteDaUrl } from "./lib/sync";
@@ -17,7 +17,7 @@ navigator.storage?.persist?.().catch(() => undefined);
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <AvisoProvider>
-      <App />
+      <Raiz />
     </AvisoProvider>
   </StrictMode>,
 );

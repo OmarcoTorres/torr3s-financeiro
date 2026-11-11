@@ -33,6 +33,7 @@ import { Pessoas } from "./pages/Pessoas";
 import { Mais, type Secao } from "./pages/Mais";
 import { juntarDuplicadasAutomatico } from "./pages/Pessoas";
 import { useAvisosNaoLidos } from "./lib/avisos";
+import { irPara, lembrarModulo, moduloSalvo } from "./plataforma/modulos";
 
 type Aba = "inicio" | "transacoes" | "cartoes" | "metas" | "relatorios" | "pessoas" | "mais";
 /** [aba, nome, ícone, onde aparece]: "ambos", só no computador (barra lateral) ou só no celular (barra inferior). */
@@ -197,6 +198,7 @@ function Painel({ email, userId }: { email: string; userId: string }) {
   useEffect(() => { history.replaceState(null, "", `#${aba}`); window.scrollTo(0, 0); if (aba === "relatorios") marcarProgresso("relatorio"); }, [aba]);
   // Grupos: carrega (e recarrega ao voltar ao app); o tema do grupo principal muda cores e mensagens.
   useGrupos();
+  useEffect(() => { if (perfil) lembrarModulo("invest"); }, [perfil]);
   const temaGrupo = useTemaAtivo(userId);
   const corAtiva = temaGrupo.tema && temaGrupo.visual && temaGrupo.grupo?.tipo !== "outro" ? temaGrupo.tema.cor : cor;
   useEffect(() => {
@@ -221,6 +223,7 @@ function Painel({ email, userId }: { email: string; userId: string }) {
   };
 
   if (!dados.pronto || !perfilCarregado) return <Carregando />;
+  if (!perfil && !moduloSalvo()) { irPara("seletor"); return <Carregando />; }
   if (!perfil) return <BoasVindas aoTerminar={() => undefined} />;
 
   return (
@@ -245,6 +248,7 @@ function Painel({ email, userId }: { email: string; userId: string }) {
           </div>
           <div className="acoes">
             <IndicadorSync />
+            <button type="button" className="btn icone" aria-label="Trocar de módulo" title="Módulos: Invest+, Vida+, Kaya Life" onClick={() => irPara("seletor")}><LayoutGrid /></button>
             <button type="button" className="btn icone" data-tour="ler-conta" aria-label="Ler conta pela foto" title="Ler conta pela foto" onClick={() => setLerAberto(true)}><ScanLine /></button>
             <button type="button" className="btn icone" style={{ position: "relative" }} aria-label={naoLidos ? `Assistente: ${naoLidos} aviso(s) novo(s)` : "Assistente"} title="Assistente e avisos" onClick={() => setPerguntaAberta(true)}>
               <MessageSquareText />{naoLidos > 0 && <span className="badge-icone">{naoLidos > 9 ? "9+" : naoLidos}</span>}

@@ -5,7 +5,7 @@ import { convitePendente } from "../lib/sync";
 
 type Modo = "entrar" | "criar" | "recuperar" | "nova-senha";
 
-export function Login({ modoInicial = "entrar", aoDefinirSenha }: { modoInicial?: Modo; aoDefinirSenha?: () => void }) {
+export function Login({ modoInicial = "entrar", aoDefinirSenha, marca = "Invest+", icone = "/icon.svg" }: { modoInicial?: Modo; aoDefinirSenha?: () => void; marca?: string; icone?: string }) {
   const pendente = convitePendente();
   const [modo, setModo] = useState<Modo>(pendente && modoInicial === "entrar" ? "criar" : modoInicial);
   const [quemConvidou, setQuemConvidou] = useState<string | null>(null);
@@ -56,7 +56,7 @@ export function Login({ modoInicial = "entrar", aoDefinirSenha }: { modoInicial?
     }
   }
 
-  const titulo = { entrar: "Entrar no Invest+", criar: "Criar sua conta", recuperar: "Recuperar a senha", "nova-senha": "Definir nova senha" }[modo];
+  const titulo = { entrar: `Entrar no ${marca}`, criar: "Criar sua conta", recuperar: "Recuperar a senha", "nova-senha": "Definir nova senha" }[modo];
   const sub = {
     entrar: "Seus dados ficam salvos na sua conta e aparecem em qualquer aparelho.",
     criar: "Leva um minuto. Depois a gente monta o painel do seu jeito.",
@@ -66,10 +66,10 @@ export function Login({ modoInicial = "entrar", aoDefinirSenha }: { modoInicial?
 
   return (
     <div className="boasvindas">
-      <div className="topo-bv"><img src="/icon.svg" alt="" /><b>Invest+</b></div>
+      <div className="topo-bv"><img src={icone} alt="" /><b>{marca}</b></div>
       <form className="corpo" onSubmit={enviar} noValidate>
         {quemConvidou && modo !== "nova-senha" && (
-          <div className="aviso dica"><Users size={18} /><div><b>{quemConvidou} convidou você para o grupo dele no Invest+.</b> Crie sua conta (ou entre, se já tiver) e vocês ficam conectados automaticamente.</div></div>
+          <div className="aviso dica"><Users size={18} /><div><b>{quemConvidou} convidou você para o grupo dele no {marca}.</b> Crie sua conta (ou entre, se já tiver) e vocês ficam conectados automaticamente.</div></div>
         )}
         <h1>{titulo}</h1>
         <p className="lead">{sub}</p>
