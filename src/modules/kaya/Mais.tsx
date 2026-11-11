@@ -102,7 +102,7 @@ function Privacidade() {
           <input type="checkbox" className="interruptor" checked={k.soLocal} onChange={(e) => void rodar(() => definirSoLocal(e.target.checked), e.target.checked ? "Pronto: nada mais vai para a nuvem." : "Sincronização cifrada ligada.")} /></label>
       </Secao>
       <Secao titulo="Trocar PIN">
-        <div className="duas">
+        <div style={{ display: "grid", gap: 12 }}>
           <label className="campo"><span>PIN atual</span><input type="password" inputMode="numeric" autoComplete="off" value={pa} onChange={(e) => setPa(e.target.value.replace(/\D/g, ""))} /></label>
           <label className="campo"><span>PIN novo (6 a 12 números)</span><input type="password" inputMode="numeric" autoComplete="off" value={pn} onChange={(e) => setPn(e.target.value.replace(/\D/g, ""))} /></label>
         </div>

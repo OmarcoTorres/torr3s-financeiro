@@ -58,7 +58,7 @@ export function Registrar({ fechar, pausar }: { fechar: () => void; pausar: () =
           <label className="campo"><span>Por que agora?</span><input value={ck.porque} maxLength={120} onChange={(e) => setCk({ ...ck, porque: e.target.value })} placeholder="Ex.: dia pesado, encontro com amigos" /></label>
           <label className="campo"><span>Como você está?</span><input value={ck.como} maxLength={120} onChange={(e) => setCk({ ...ck, como: e.target.value })} placeholder="Ex.: cansado, ansioso, tranquilo" /></label>
           <label className="campo"><span>O que você espera sentir?</span><input value={ck.espera} maxLength={120} onChange={(e) => setCk({ ...ck, espera: e.target.value })} placeholder="Ex.: relaxar, dormir melhor" /></label>
-          <div className="linha-botoes"><button type="button" className="btn pri" onClick={() => setEtapa("espera")}>Continuar</button><button type="button" className="btn fantasma" onClick={() => setEtapa("registro")}>Pular para o registro</button></div>
+          <button type="button" className="btn pri grande" onClick={() => setEtapa("espera")}>Continuar</button><button type="button" className="btn fantasma" onClick={() => setEtapa("registro")}>Pular para o registro</button>
         </>
       )}
       {etapa === "espera" && <Espera pausar={pausar} aoTerminar={(e) => { setEsperou(e); setEtapa("registro"); }} />}

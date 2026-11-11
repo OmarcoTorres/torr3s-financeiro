@@ -5,12 +5,16 @@
   --pos: #3E7A5A; --pos-soft: #E2EFE6; --warn: #A8632F; --warn-soft: #F6E9DC; --neg: #A9483B; --neg-soft: #F6E1DD;
   --display: "Fraunces", Georgia, serif; --font: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
   --shadow: 0 1px 2px rgb(34 48 42 / 5%), 0 8px 24px rgb(34 48 42 / 6%);
+  --campo: #F6F2EA; --campo-borda: #DCD2C0; --campo-texto: #22302A; --campo-dica: #8A8D84; --foco: color-mix(in srgb, #2F4A3F 22%, transparent);
+  color-scheme: light;
   background: var(--bg); color: var(--ink); font-family: var(--font); min-height: 100dvh; font-size: calc(1rem * var(--kaya-escala, 1));
 }
 @media (prefers-color-scheme: dark) {
   .kaya { --bg: #141A17; --surface: #1C2420; --surface-2: #26302A; --ink: #ECE7DC; --muted: #A3A89E; --line: #2E3832;
     --accent: #9DBFAE; --accent-ink: #141A17; --accent-soft: #24332C; --terra: #E29A74; --terra-soft: #3A2A21;
-    --pos: #8CCBA6; --pos-soft: #1F3328; --warn: #E2AD7C; --warn-soft: #3A2D1F; --neg: #E69A8E; --neg-soft: #3B2421; }
+    --pos: #8CCBA6; --pos-soft: #1F3328; --warn: #E2AD7C; --warn-soft: #3A2D1F; --neg: #E69A8E; --neg-soft: #3B2421;
+    --line: #34413A; --campo: #26322C; --campo-borda: #3E4C44; --campo-texto: #F1ECE2; --campo-dica: #949B91; --foco: rgb(157 191 174 / 28%);
+    color-scheme: dark; }
 }
 .kaya h1, .kaya h2, .kaya .titulo, .kaya .v { font-family: var(--display); font-weight: 600; letter-spacing: -.01em; }
 .kaya .kpi-card .v { font-weight: 600; }
@@ -64,3 +68,36 @@
 @media (prefers-reduced-motion: reduce) { .kaya *, .kaya *::before { transition: none !important; animation: none !important; } .kaya-respira { transform: none !important; } }
 .kaya-busca { display: flex; align-items: center; gap: 8px; background: var(--surface); border-radius: 14px; padding: 0 12px; box-shadow: var(--shadow); min-height: 44px; color: var(--muted); }
 .kaya-busca input { border: 0; background: none; flex: 1; min-width: 0; outline: none; color: var(--ink); padding: 10px 0; }
+
+/* ---------- Campos: um padrão só para todas as telas do Kaya Life ---------- */
+/* Especificidade controlada: vence o .campo input do Invest+, perde para os ajustes abaixo (PIN, busca). */
+.kaya.kaya :where(input:not([type="range"]):not([type="checkbox"]):not([type="radio"]), textarea, select) {
+  -webkit-appearance: none; appearance: none; width: 100%; min-width: 0; display: block;
+  background: var(--campo); color: var(--campo-texto); -webkit-text-fill-color: var(--campo-texto); caret-color: var(--accent);
+  border: 1.5px solid var(--campo-borda); border-radius: 14px; padding: 13px 15px; min-height: 50px;
+  font: inherit; font-size: 16px; line-height: 1.4; box-shadow: none; transition: border-color .15s, box-shadow .15s, background .15s;
+}
+.kaya.kaya :where(textarea) { min-height: 112px; resize: vertical; }
+.kaya input::placeholder, .kaya textarea::placeholder { color: var(--campo-dica); -webkit-text-fill-color: var(--campo-dica); opacity: 1; }
+.kaya.kaya :where(input, textarea):hover:not(:focus) { border-color: color-mix(in srgb, var(--campo-borda) 60%, var(--accent)); }
+.kaya.kaya :where(input, textarea, select):focus { outline: none; border-color: var(--accent); background: var(--surface); box-shadow: 0 0 0 4px var(--foco); }
+.kaya input:disabled, .kaya textarea:disabled { opacity: .55; }
+.kaya input:-webkit-autofill, .kaya input:-webkit-autofill:focus { -webkit-box-shadow: 0 0 0 60px var(--campo) inset !important; -webkit-text-fill-color: var(--campo-texto) !important; caret-color: var(--accent); }
+.kaya .campo { gap: 7px; }
+.kaya .campo > span, .kaya .kaya-rotulo { font-size: .82rem; font-weight: 600; color: color-mix(in srgb, var(--ink) 78%, var(--muted)); }
+.kaya.kaya .kaya-pin { text-align: center; font-size: 1.5rem; letter-spacing: .45em; padding-left: calc(15px + .45em); font-variant-numeric: tabular-nums; }
+.kaya.kaya .kaya-busca input, .kaya.kaya .kaya-busca input:focus { border: 0; background: none; box-shadow: none; min-height: 44px; padding: 0; }
+.kaya .kaya-busca:focus-within { box-shadow: 0 0 0 4px var(--foco), var(--shadow); }
+.kaya .busca { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; }
+.kaya .seg { background: var(--surface-2); }
+.kaya .seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
+.kaya .kaya-chip { border-color: var(--campo-borda); }
+.kaya .kaya-chip:focus-visible, .kaya .btn:focus-visible, .kaya .seg button:focus-visible { outline: 3px solid var(--foco); outline-offset: 2px; }
+.kaya .linha-toggle { gap: 14px; }
+.kaya .linha-toggle small { color: var(--muted); }
+.kaya .interruptor { flex: none; }
+.kaya .card .kaya-chips + input, .kaya .card h2 + .kaya-chips { margin-top: 2px; }
+/* Aviso flutuante (fica fora do .kaya, no provedor da plataforma): cores do Kaya quando o módulo está aberto. */
+body:has(.kaya) .toast { background: #2F4A3F; color: #FAF8F3; box-shadow: 0 10px 30px rgb(0 0 0 / 22%); }
+@media (prefers-color-scheme: dark) { body:has(.kaya) .toast { background: #ECE7DC; color: #141A17; } }
+.kaya .folha .btn.grande { width: 100%; }
