@@ -18,20 +18,6 @@
     <meta name="description" content="Invest+: dashboard financeiro com transações, cartões, metas e relatórios." />
   </head>
   <body>
-    <script>
-      // Kaya Life (kayalife.vercel.app ou /kaya): manifesto, nome e ícone próprios para instalar como "Kaya Life".
-      (function () {
-        var kaya = /^kayalife\./.test(location.hostname) || /^\/kaya(\/|$)/.test(location.pathname);
-        if (!kaya) return;
-        var set = function (sel, attr, v) { var el = document.querySelector(sel); if (el) el.setAttribute(attr, v); };
-        set('link[rel="manifest"]', "href", "/kaya/manifest.webmanifest");
-        set('link[rel="apple-touch-icon"]', "href", "/kaya/apple-touch-icon.png");
-        set('link[rel="icon"]', "href", "/kaya/icon-192.png");
-        set('meta[name="apple-mobile-web-app-title"]', "content", "Kaya Life");
-        set('meta[name="theme-color"]', "content", "#FAF8F3");
-        document.title = "Kaya Life";
-      })();
-    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

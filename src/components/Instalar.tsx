@@ -16,7 +16,7 @@ function Passo({ n, icone, children }: { n: number; icone: React.ReactNode; chil
   );
 }
 
-/** Passo a passo para instalar o módulo (Invest+, Kaya Life…) como app, conforme o aparelho. */
+/** Passo a passo para instalar o módulo (Invest+, Vida+…) como app, conforme o aparelho. */
 export function GuiaInstalacao({ irNotificacoes, nome = "Invest+", beneficio = "pode avisar de vencimentos, faturas e metas" }: { irNotificacoes?: () => void; nome?: string; beneficio?: string }) {
   const aviso = useAviso();
   const p = plataforma();

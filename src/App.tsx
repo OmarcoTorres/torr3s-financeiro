@@ -248,7 +248,7 @@ function Painel({ email, userId }: { email: string; userId: string }) {
           </div>
           <div className="acoes">
             <IndicadorSync />
-            <button type="button" className="btn icone" aria-label="Trocar de módulo" title="Módulos: Invest+, Vida+, Kaya Life" onClick={() => irPara("seletor")}><LayoutGrid /></button>
+            <button type="button" className="btn icone" aria-label="Trocar de módulo" title="Módulos: Invest+ e Vida+" onClick={() => irPara("seletor")}><LayoutGrid /></button>
             <button type="button" className="btn icone" data-tour="ler-conta" aria-label="Ler conta pela foto" title="Ler conta pela foto" onClick={() => setLerAberto(true)}><ScanLine /></button>
             <button type="button" className="btn icone" style={{ position: "relative" }} aria-label={naoLidos ? `Assistente: ${naoLidos} aviso(s) novo(s)` : "Assistente"} title="Assistente e avisos" onClick={() => setPerguntaAberta(true)}>
               <MessageSquareText />{naoLidos > 0 && <span className="badge-icone">{naoLidos > 9 ? "9+" : naoLidos}</span>}
